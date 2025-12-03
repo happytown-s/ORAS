@@ -1,6 +1,6 @@
 # JUCE specific
-Builds/
-JuceLibraryCode/
+build/
+JUCE/
 *.jucer
 !*.jucer
 *.py
