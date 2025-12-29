@@ -254,7 +254,7 @@ void MainComponent::resized()
 	pizzaVisualizer.setBounds(pizzaX, pizzaY, pizzaSize, pizzaSize);
 
 	// 🎛 トランスポートエリア
-	auto transportArea = area.removeFromTop(70);
+	auto transportArea = area.removeFromTop(100);  // 70 → 100 (ラベル用スペース)
 	transportPanel.setBounds(transportArea);
 	// 🎚 トラック群
 	int x = 0, y = 0;

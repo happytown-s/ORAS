@@ -21,17 +21,23 @@ TransportPanel::TransportPanel(LooperAudio& looperRef)
 	setupRoundButton(clearButton,  PizzaColours::CheeseYellow);
 	setupRoundButton(settingButton,PizzaColours::CreamDough);
 
-	for (auto* btn : {&recordButton, &playButton, &undoButton,&clearButton,&settingButton})
+	// 🍕 カスタムLookAndFeelを適用
+	for (auto* btn : {&recordButton, &playButton, &undoButton, &clearButton, &settingButton})
 	{
 		addAndMakeVisible(btn);
 		btn->addListener(this);
+		btn->setLookAndFeel(&roundLookAndFeel);  // カスタムLookAndFeelを適用
 	}
 }
 
 TransportPanel::~TransportPanel()
 {
-	for (auto* btn : { &recordButton, &playButton, &undoButton, &clearButton,&settingButton })
+	// LookAndFeelを解除
+	for (auto* btn : {&recordButton, &playButton, &undoButton, &clearButton, &settingButton})
+	{
+		btn->setLookAndFeel(nullptr);
 		btn->removeListener(this);
+	}
 }
 
 void TransportPanel::paint(juce::Graphics& g)
@@ -47,28 +53,26 @@ void TransportPanel::resized()
 {
 	auto area = getLocalBounds().reduced(10);
 	const int spacing = 10;
-
-	std::vector<std::pair<juce::TextButton*, int>> buttons =
+	const int buttonWidth = 50;  // 幅を50pxに固定（大きくなりすぎないように）
+	const int buttonHeight = buttonWidth + 20;      // 高さ（ラベル用スペース追加）
+	
+	std::vector<juce::TextButton*> buttons =
 	{
-		{&recordButton, 80},
-		{&playButton, 80},
-		{&undoButton, 80},
-		{&clearButton, 80},
-		{&settingButton, 100}
-
+		&recordButton,
+		&playButton,
+		&undoButton,
+		&clearButton,
+		&settingButton
 	};
-
-	int totalWidth = 0;
-	for (auto& [_, w] : buttons) totalWidth += w + spacing;
-
-
-	int startX = area.getX() + (area.getWidth() - totalWidth + spacing) / 2;
+	
+	int totalWidth = buttonWidth * buttons.size() + spacing * (buttons.size() - 1);
+	int startX = area.getX() + (area.getWidth() - totalWidth) / 2;
 	int y = area.getY();
-
-	for (auto& [btn, width] : buttons)
+	
+	for (auto* btn : buttons)
 	{
-		btn->setBounds({ startX, y + 5, width, area.getHeight() - 10});
-		startX += width + spacing;
+		btn->setBounds(startX, y, buttonWidth, buttonHeight);  // 縦長
+		startX += buttonWidth + spacing;
 	}
 }
 
@@ -127,22 +131,22 @@ void TransportPanel::setState(State newState)
 	{
 		case State::Idle:
 			// 録音済みトラックがない、初期状態
-			recordButton.setButtonText("REC");
+			recordButton.setButtonText(juce::String::fromUTF8("\xE2\x8F\xBA"));  // ⏺
 			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::TomatoRed);
 			
-			playButton.setButtonText("PLAY");
-			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray); // 押せないようにグレーアウト
+			playButton.setButtonText(juce::String::fromUTF8("\xE2\x96\xB6"));   // ▶
+			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray);
 
-			undoButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray.withAlpha(0.5f)); // 押せない
+			undoButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray.withAlpha(0.5f));
 
 			break;
 
 		case State::Standby:
-			// 🟡 待機中
-			recordButton.setButtonText("WAIT...");
+			// 🟭 待機中
+			recordButton.setButtonText(juce::String::fromUTF8("\xE2\x8F\xBA"));  // ⏺
 			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::CheeseYellow);
 			
-			playButton.setButtonText("PLAY");
+			playButton.setButtonText(juce::String::fromUTF8("\xE2\x96\xB6"));   // ▶
 			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray);
 			
 			undoButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray.withAlpha(0.5f));
@@ -150,33 +154,33 @@ void TransportPanel::setState(State newState)
 
 		case State::Recording:
 			// 🔴 録音中
-			recordButton.setButtonText("STOP");
-			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::TomatoRed.darker(0.3f)); // 点滅風に濃くする
+			recordButton.setButtonText(juce::String::fromUTF8("\xE2\x96\xA0"));  // ■
+			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::TomatoRed.darker(0.3f));
 			
-			playButton.setButtonText("PLAY");
-			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray); // 録音中は再生ボタンを無効化
+			playButton.setButtonText(juce::String::fromUTF8("\xE2\x96\xB6"));   // ▶
+			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray);
 			
-			undoButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray.withAlpha(0.5f)); // 録音中はUNDO無効
+			undoButton.setColour(juce::TextButton::buttonColourId, PizzaColours::MushroomGray.withAlpha(0.5f));
 
 			break;
 
 		case State::Playing:
 			// ▶️ 再生中
-			recordButton.setButtonText("REC");
-			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::TomatoRed); // 次の録音待機
+			recordButton.setButtonText(juce::String::fromUTF8("\xE2\x8F\xBA"));  // ⏺
+			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::TomatoRed);
 
-			playButton.setButtonText("STOP");
+			playButton.setButtonText(juce::String::fromUTF8("\xE2\x96\xA0"));   // ■
 			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::CheeseYellow);
 			
 			break;
 
 		case State::Stopped:
 			// ⏹ 停止中 (再生可能なトラックあり)
-			recordButton.setButtonText("REC");
+			recordButton.setButtonText(juce::String::fromUTF8("\xE2\x8F\xBA"));  // ⏺
 			recordButton.setColour(juce::TextButton::buttonColourId, PizzaColours::TomatoRed);
 			
-			playButton.setButtonText("PLAY");
-			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::BasilGreen); // 再生可能
+			playButton.setButtonText(juce::String::fromUTF8("\xE2\x96\xB6"));   // ▶
+			playButton.setColour(juce::TextButton::buttonColourId, PizzaColours::BasilGreen);
 			
 			break;
 	}

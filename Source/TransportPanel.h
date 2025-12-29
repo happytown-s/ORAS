@@ -12,6 +12,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PizzaColours.h"
 #include "LooperAudio.h"
+#include "RoundButtonLookAndFeel.h"
 // =====================================================
 // 🎛 TransportPanel クラス宣言
 // =====================================================
@@ -40,14 +41,15 @@ private:
 	State currentState = State::Idle;
 	LooperAudio& looper;
 
-
+	// 🍕 丸型ボタン用LookAndFeel
+	RoundButtonLookAndFeel roundLookAndFeel;
 
 	//ボタン宣言
-	juce::TextButton recordButton {"REC"};
-	juce::TextButton playButton {"PLAY"};
-	juce::TextButton undoButton {"UNDO"};
-	juce::TextButton clearButton {"CLEAR"};
-	juce::TextButton settingButton {"SETUP"};
+	juce::TextButton recordButton {juce::String::fromUTF8("\xE2\x8F\xBA")};   // ⏺
+	juce::TextButton playButton {juce::String::fromUTF8("\xE2\x96\xB6")};     // ▶
+	juce::TextButton undoButton {juce::String::fromUTF8("\xE2\x86\xB6")};     // ↶
+	juce::TextButton clearButton {juce::String::fromUTF8("\xE2\x8C\xAB")};    // ⌫
+	juce::TextButton settingButton {juce::String::fromUTF8("\xE2\x9A\x99")};  // ⚙
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransportPanel);
 };
