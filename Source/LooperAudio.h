@@ -80,6 +80,7 @@ private:
 		int recordStartSample = 0; //グローバル位置での録音開始サンプル
 		int lengthInSample = 0; //トラックの長さ
 		float currentLevel = 0.0f;
+		float gain = 1.0f;
 	};
 
 public:
@@ -93,6 +94,9 @@ public:
 	bool isAnyPlaying() const;
 	bool hasRecordedTracks() const;
 	int getCurrentTrackId() const;
+
+	float getTrackRMS(int trackId) const;
+	void setTrackGain(int trackId, float gain);
 
 
 private:

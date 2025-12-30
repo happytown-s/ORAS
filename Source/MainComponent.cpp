@@ -27,6 +27,13 @@ MainComponent::MainComponent()
 		int newId = static_cast<int>(trackUIs.size() + 1);
 		auto track = std::make_unique<LooperTrackUi>(newId, LooperTrackUi::TrackState::Idle);
 		track->setListener(this);
+		
+		// フェーダー操作時のコールバック
+		track->onGainChange = [this, newId](float gain)
+		{
+			looper.setTrackGain(newId, gain);
+		};
+		
 		addAndMakeVisible(track.get());
 		trackUIs.push_back(std::move(track));
 		looper.addTrack(newId);
@@ -40,17 +47,34 @@ MainComponent::MainComponent()
 	transportPanel.onAction = [this](const juce::String& action)
 	{
 		if      (action == "REC")  {
-			// 録音開始前にスタンバイモードにする
-			isStandbyMode = true;
-			for (auto& t : trackUIs)
-			{
-				if (t->getIsSelected() &&
-					t->getState() == LooperTrackUi::TrackState::Idle)
-				{
-					t->setState(LooperTrackUi::TrackState::Standby);
+			// Check if we are already in standby (or have tracks in standby)
+			bool anyStandby = false;
+			for(auto& t : trackUIs) {
+				if(t->getState() == LooperTrackUi::TrackState::Standby) {
+					anyStandby = true;
+					break;
 				}
 			}
-            updateStateVisual();
+
+			if (anyStandby)
+			{
+				// 🔴 Force Start Recording (Signal to audio thread)
+				forceRecordRequest = true;
+			}
+			else
+			{
+				// 🟡 Enter Standby mode
+				isStandbyMode = true;
+				for (auto& t : trackUIs)
+				{
+					if (t->getIsSelected() &&
+						t->getState() == LooperTrackUi::TrackState::Idle)
+					{
+						t->setState(LooperTrackUi::TrackState::Standby);
+					}
+				}
+				updateStateVisual();
+			}
 		}
 		else if (action == "STOP_REC") {
 			// スタンバイ解除
@@ -116,7 +140,7 @@ MainComponent::MainComponent()
 
 
 
-	setSize(1000, 800);
+	setSize(760, 800);
 
 
 	//ルーパーからのリスナーイベントを受け取る
@@ -201,6 +225,25 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 		}
 			
 	}
+    // 🔥 Force Record Trigger (Manual)
+    if (forceRecordRequest.exchange(false))
+    {
+        isStandbyMode = false;
+        
+        for (auto& t : trackUIs)
+        {
+            if (t->getState() == LooperTrackUi::TrackState::Standby)
+            {
+                looper.startRecording(t->getTrackId());
+                
+                juce::MessageManager::callAsync([this, &t]()
+                {
+                    t->setState(LooperTrackUi::TrackState::Recording);
+                });
+            }
+        }
+    }
+
 	// 🌀 LooperAudio の処理は常に実行
 	looper.processBlock(*bufferToFill.buffer, input);
 }
@@ -427,8 +470,11 @@ void MainComponent::timerCallback()
         if (t->getState() == LooperTrackUi::TrackState::Standby)
         {
             anyStandby = true;
-            break;
+            // break; // メーター更新のためbreakしない
         }
+        
+        // メーター更新 (アイドル時でも音が出ていれば振れる)
+        t->setLevel(looper.getTrackRMS(t->getTrackId()));
     }
 
 	//TransportPanelの状態更新

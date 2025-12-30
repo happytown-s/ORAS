@@ -66,12 +66,13 @@ public juce::Timer
 	TransportPanel transportPanel;
 	int selectedTrackId = 0;
 	std::atomic<bool> isStandbyMode { false };
+    std::atomic<bool> forceRecordRequest { false };
 
 
 	std::vector<std::unique_ptr<LooperTrackUi>> trackUIs;
 	LooperTrackUi* selectedTrack = nullptr;
 
-	const int pizzaVisualArea = 400;
+	const int pizzaVisualArea = 300;
 	const int topHeight = 40;
 	const int trackWidth = 80;
 	const int trackHeight = 300;

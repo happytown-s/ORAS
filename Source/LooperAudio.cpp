@@ -280,7 +280,8 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             for (int ch = 0; ch < numChannels; ++ch)
             {
                 // 出力の現在の位置 (numSamples - remaining は間違いやすいので outputOffset を使用)
-                output.addFrom(ch, outputOffset, track.buffer, ch, readPos, samplesToCopy);
+                // ゲインを適用して加算
+                output.addFrom(ch, outputOffset, track.buffer, ch, readPos, samplesToCopy, track.gain);
             }
 
             readPos = (readPos + samplesToCopy) % loopLength;
@@ -419,4 +420,17 @@ bool LooperAudio::hasRecordedTracks() const
     for (const auto& [id, track] : tracks)
         if (track.recordLength > 0) return true;
     return false;
+}
+
+float LooperAudio::getTrackRMS(int trackId) const
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        return it->second.currentLevel;
+    return 0.0f;
+}
+
+void LooperAudio::setTrackGain(int trackId, float gain)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        it->second.gain = gain;
 }

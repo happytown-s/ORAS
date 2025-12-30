@@ -18,8 +18,7 @@ class LooperTrackUi : public juce::Component,juce::Timer
 	//トラックの状態
 	enum class TrackState{Idle,Standby,Recording,Playing,Stopped};
 
-	LooperTrackUi(int id, TrackState initState = TrackState::Idle)
-	: trackId(id),state(initState){}
+	LooperTrackUi(int id, TrackState initState = TrackState::Idle);
 
 	~LooperTrackUi() override = default;
 	//リスナー関数のオーバーライド。クリックされたトラックの把握に必要
@@ -42,6 +41,8 @@ class LooperTrackUi : public juce::Component,juce::Timer
 	void mouseDown(const juce::MouseEvent&) override;
 	void mouseEnter(const juce::MouseEvent&) override;
 	void mouseExit(const juce::MouseEvent&)override;
+	void resized() override; // 🆕 Added declaration
+
 	void setSelected(bool shouldBeSelected);
 	bool getIsSelected() const;
 	void setListener(Listener* listener);
@@ -52,7 +53,8 @@ class LooperTrackUi : public juce::Component,juce::Timer
 	//枠の周囲の光るアニメーション用
 	void startFlash();
 	void timerCallback() override;
-	void drawGlowingBorder(juce::Graphics& g,juce::Colour glowColour);
+	void drawGlowingBorder(juce::Graphics& g, juce::Colour glowColour);
+	void drawGlowingBorder(juce::Graphics& g, juce::Colour glowColour, juce::Rectangle<float> area); // 🆕 Added overload
 
 	protected:
 	void paint(juce::Graphics& g) override;
@@ -72,5 +74,24 @@ class LooperTrackUi : public juce::Component,juce::Timer
 
 	float flashProgress = 0.0f;
 	bool isFlashing = false;
+
+	// Volume Fader
+    class FaderLookAndFeel : public juce::LookAndFeel_V4
+    {
+    public:
+        void drawLinearSlider(juce::Graphics&, int x, int y, int width, int height,
+                              float sliderPos, float minSliderPos, float maxSliderPos,
+                              const juce::Slider::SliderStyle, juce::Slider&) override;
+    };
+
+    FaderLookAndFeel faderLookAndFeel;
+	juce::Slider gainSlider;
+	float currentRmsLevel = 0.0f;
+
+public:
+	std::function<void(float)> onGainChange;
+
+	void setLevel(float rms);
+	float getGain() const { return (float)gainSlider.getValue(); }
 };
 
