@@ -26,25 +26,39 @@ void LooperTrackUi::paint(juce::Graphics& g)
 	float gap = 10.0f;
 	juce::Rectangle<float> bottomArea(0, buttonSize + gap, width, bounds.getHeight() - buttonSize - 15.0f - gap); 
 
-	// --- 1. Top Selection Button ---
-	// Glowing backdrop
+	// --- 1. Top Selection Button (Space HUD Style) ---
+	
+    // Glass effect: Semi-transparent black background
+    g.setColour(juce::Colours::black.withAlpha(0.4f)); 
+    g.fillRoundedRectangle(buttonArea, 8.0f);
+
+    // Selection Highlight (Neon Glow)
     if (isSelected) {
-        g.setColour(ThemeColours::NeonCyan.withAlpha(0.15f));
-        g.fillRoundedRectangle(buttonArea.expanded(2.0f), 10.0f);
+        g.setColour(ThemeColours::NeonCyan.withAlpha(0.2f));
+        g.fillRoundedRectangle(buttonArea, 8.0f);
+        // Outer Glow is handled by state logic or separate call if needed, 
+        // but here we ensure base selection visibility
+    }
+    
+    // Mouse Over Interaction
+    if (buttonArea.contains(getMouseXYRelative().toFloat())) {
+        if (isMouseOver) {
+            g.setColour(juce::Colours::white.withAlpha(0.1f));
+            g.fillRoundedRectangle(buttonArea, 8.0f);
+        }
     }
 
-	if(isSelected){
-		g.setColour(ThemeColours::ElectricBlue);
-	}else if(isMouseOver && buttonArea.contains(getMouseXYRelative().toFloat())){
-		g.setColour(ThemeColours::MetalGray.brighter(0.2f));
-	}else{
-		g.setColour(ThemeColours::MetalGray);
-	}
-	g.fillRoundedRectangle(buttonArea, 8.0f);
-    
-    // Border
-	g.setColour(isSelected ? ThemeColours::NeonCyan : ThemeColours::Silver.withAlpha(0.4f));
-	g.drawRoundedRectangle(buttonArea, 8.0f, 1.5f);
+    // Border: Thin neon line (Brighter if selected)
+    // If NOT recording/playing, we show the default border. 
+    // If state is active, the state block below handles the colored border/glow.
+    if (state == TrackState::Idle || state == TrackState::Stopped)
+    {
+        g.setColour(isSelected ? ThemeColours::NeonCyan : ThemeColours::NeonCyan.withAlpha(0.3f));
+        g.drawRoundedRectangle(buttonArea, 8.0f, isSelected ? 2.0f : 1.0f);
+        
+        if (isSelected) 
+            drawGlowingBorder(g, ThemeColours::NeonCyan.withAlpha(0.5f), buttonArea);
+    }
 
 	// State-specific overlays with synchronized pulsing
 	float time = (float)juce::Time::getMillisecondCounterHiRes() * 0.001f;
@@ -126,8 +140,8 @@ void LooperTrackUi::FaderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x,
                                                        float sliderPos, float minSliderPos, float maxSliderPos,
                                                        const juce::Slider::SliderStyle style, juce::Slider& slider)
 {
-    // Tick marks
-    g.setColour(ThemeColours::Silver.withAlpha(0.4f));
+    // Tick marks - Increase brightness for visibility on dark background
+    g.setColour(ThemeColours::Silver.withAlpha(0.8f));
     int numTicks = 5; 
     float trackSpecWidth = 2.0f;
     float centerX = x + width * 0.5f;
@@ -143,8 +157,8 @@ void LooperTrackUi::FaderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x,
         g.drawLine(centerX + trackSpecWidth, tickY, centerX + trackSpecWidth + tickSize, tickY, 1.0f);
     }
 
-    // Track
-    g.setColour(juce::Colours::black.withAlpha(0.4f));
+    // Track - Use lighter color (MetalGray) to stand out on dark overlay
+    g.setColour(ThemeColours::MetalGray.withAlpha(0.6f));
     juce::Rectangle<float> track(centerX - trackSpecWidth * 0.5f, 
                                  (float)y, 
                                  trackSpecWidth, 

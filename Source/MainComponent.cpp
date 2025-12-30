@@ -115,6 +115,7 @@ MainComponent::MainComponent()
 		else if (action == "UNDO")   looper.undoLastRecording();
 		else if (action == "CLEAR") {
 		looper.allClear();
+        visualizer.clear(); // Reset visualizer
 		
 		// UI状態を完全にリセット
 		isStandbyMode = false;
@@ -144,6 +145,18 @@ MainComponent::MainComponent()
 
 	//ルーパーからのリスナーイベントを受け取る
 	looper.addListener(this);
+
+    // Initialize Global Stars
+    for (int i = 0; i < 200; ++i)
+    {
+        Star s;
+        s.x = juce::Random::getSystemRandom().nextFloat();
+        s.y = juce::Random::getSystemRandom().nextFloat();
+        s.size = juce::Random::getSystemRandom().nextFloat() * 2.5f + 0.5f;
+        s.brightness = juce::Random::getSystemRandom().nextFloat();
+        s.speed = juce::Random::getSystemRandom().nextFloat() * 0.05f + 0.02f;
+        stars.push_back(s);
+    }
 }
 
 MainComponent::~MainComponent()
@@ -256,22 +269,41 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 
 void MainComponent::paint(juce::Graphics& g)
 {
-    g.fillAll(ThemeColours::Background);
-
     auto bounds = getLocalBounds().toFloat();
+    auto centre = bounds.getCentre();
+
+    // --- Space Background (Global) ---
+    // Deep space gradient
+    g.setGradientFill(juce::ColourGradient(juce::Colour(0xff050510), centre.x, centre.y,
+                                           juce::Colour(0xff000000), 0.0f, 0.0f, true));
+    g.fillAll(); // Fill entire component
     
-    // Subtle gradient for depth
-    g.setGradientFill(juce::ColourGradient::vertical(
-                                    ThemeColours::MetalGray.withAlpha(0.5f),
-                                    0.0f,
-                                    ThemeColours::Background,
-                                    (float)getHeight()));
-    g.fillRect(bounds);
+    // Subtle Nebula/Glow radiating from center
+    g.setGradientFill(juce::ColourGradient(ThemeColours::NeonCyan.withAlpha(0.08f), centre.x, centre.y, 
+                                           juce::Colours::transparentBlack, centre.x + bounds.getWidth()*0.6f, centre.y + bounds.getHeight()*0.6f, true));
+    g.fillAll();
+
+    // Draw Global Stars
+    for (const auto& star : stars)
+    {
+        float x = star.x * bounds.getWidth();
+        float y = star.y * bounds.getHeight();
+        
+        // 瞬き
+        float alpha = juce::jlimit(0.0f, 1.0f, 0.2f + 0.8f * star.brightness); 
+        g.setColour(juce::Colours::white.withAlpha(alpha));
+        g.fillEllipse(x, y, star.size, star.size);
+    }
+    
 
     // Top Header with Neon Accent
     juce::Rectangle<float> topBar(0, 0, getWidth(), 60.0f);
+    // Darker header background for readability
+    g.setColour(juce::Colours::black.withAlpha(0.4f)); 
+    g.fillRect(topBar);
+    
     g.setGradientFill(juce::ColourGradient::horizontal(
-        ThemeColours::NeonCyan.withAlpha(0.2f), 0.0f,
+        ThemeColours::NeonCyan.withAlpha(0.1f), 0.0f,
         ThemeColours::NeonMagenta.withAlpha(0.1f), (float)getWidth()));
     g.fillRect(topBar);
 
@@ -281,11 +313,25 @@ void MainComponent::paint(juce::Graphics& g)
     if (g.getCurrentFont().getTypefaceName() == "Sans-Serif") // Fallback
         g.setFont(juce::Font("Arial", 28.0f, juce::Font::bold));
         
-    g.drawText("LOOPER", topBar.reduced(20, 0), juce::Justification::centred);
+    g.drawText("SAROS", topBar.reduced(20, 0), juce::Justification::centred);
     
     // Top border line
     g.setColour(ThemeColours::NeonCyan.withAlpha(0.6f));
     g.drawLine(0, 60.0f, (float)getWidth(), 60.0f, 2.0f);
+
+    // --- Track Area Background ---
+    // Start below the Transport Panel (approx calculation based on layout)
+    // Layout: 50 (margin) + 280 (visual) + 100 (transport) = 430
+    float trackStartY = 430.0f; 
+    juce::Rectangle<float> trackArea(0, trackStartY, (float)getWidth(), (float)getHeight() - trackStartY);
+    
+    // Darken the track area significantly to make UI controls stand out
+    g.setColour(juce::Colours::black.withAlpha(0.7f));
+    g.fillRect(trackArea);
+    
+    // Add a separator line
+    g.setColour(ThemeColours::NeonCyan.withAlpha(0.3f));
+    g.drawLine(0, trackStartY, (float)getWidth(), trackStartY, 1.0f);
 }
 
 void MainComponent::resized() 
@@ -435,6 +481,16 @@ void MainComponent::timerCallback()
 {
 	const auto& tracks = looper.getTracks();
 
+    // Global Star Animation Update
+    for (auto& s : stars)
+    {
+        s.brightness += s.speed;
+        if (s.brightness > 1.0f || s.brightness < 0.0f)
+        {
+            s.speed = -s.speed;
+        }
+    }
+
 	bool anyRecording = anyTrackSatisfies(tracks, [](const auto& track){ return track.isRecording; });
 	bool anyPlaying = anyTrackSatisfies(tracks, [](const auto& track){ return track.isPlaying; });
 
@@ -494,6 +550,16 @@ void MainComponent::timerCallback()
 	//TransportPanelの状態更新
 	bool hasRecorded = looper.hasRecordedTracks(); // 🆕 録音済みトラックがあるか確認
 
+    // 🌀 ビジュアライザ：プレイヘッド位置更新
+    if (anyPlaying)
+    {
+        visualizer.setPlayHeadPosition(looper.getMasterNormalizedPosition());
+    }
+    else
+    {
+        //visualizer.setPlayHeadPosition(-1.0f); // 停止中は非表示、または最後の位置で止めるか
+    }
+
 	// TransportPanelの状態更新
 	if (anyRecording)
 	{
@@ -551,17 +617,25 @@ void MainComponent::onRecordingStopped(int trackID)
             if (t->getTrackId() == trackID)
                 t->setState(LooperTrackUi::TrackState::Playing);
 
-            // 2. 🆕 全トラックの選択を解除！
+            // 2. 全トラックの選択を解除！
             t->setSelected(false);
         }
 
-        // 3. 🆕 選択IDの記憶もリセット
+        // 3. 選択IDの記憶もリセット
         selectedTrackId = 0; 
         
         // 4. トランスポートパネルなどの見た目を更新
         updateStateVisual();
         
-        DBG("⏹ Track " << trackID << " recording finished. Selection cleared.");
+        // 5. 🌊 ビジュアライザに波形を送る
+        if (auto* buffer = looper.getTrackBuffer(trackID))
+        {
+            visualizer.addWaveform(trackID, *buffer, 
+                                   looper.getTrackLength(trackID), 
+                                   looper.getMasterLoopLength(),
+                                   looper.getTrackRecordStart(trackID),
+                                   looper.getMasterStartSample());
+        }
     });
 }
 

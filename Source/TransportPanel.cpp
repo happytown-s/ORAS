@@ -49,9 +49,7 @@ TransportPanel::~TransportPanel()
 
 void TransportPanel::paint(juce::Graphics& g)
 {
-	g.fillAll(ThemeColours::Background.withAlpha(0.0f)); // Transparent background
-	g.setColour(ThemeColours::NeonCyan.withAlpha(0.2f));
-	g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(2), 12.0f, 1.5f);
+    // Background and border removed for transparent look
 }
 //================================
 //レイアウト

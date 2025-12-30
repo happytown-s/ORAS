@@ -80,5 +80,14 @@ public juce::Timer
 	const int spacing = 10;
 	const int tracksPerRow = 8;
 
+    struct Star
+    {
+        float x, y; // Normalized coordinates (0.0-1.0)
+        float size;
+        float brightness;
+        float speed;
+    };
+    std::vector<Star> stars;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

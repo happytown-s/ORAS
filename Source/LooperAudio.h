@@ -98,6 +98,42 @@ public:
 	float getTrackRMS(int trackId) const;
 	void setTrackGain(int trackId, float gain);
 
+	// ビジュアライザ用
+	const juce::AudioBuffer<float>* getTrackBuffer(int trackId) const
+	{
+		if (auto it = tracks.find(trackId); it != tracks.end())
+			return &it->second.buffer;
+		return nullptr;
+	}
+
+	float getMasterNormalizedPosition() const
+	{
+		if (masterLoopLength > 0)
+			return (float)masterReadPosition / (float)masterLoopLength;
+		return 0.0f;
+	}
+
+    int getMasterLoopLength() const { return masterLoopLength; }
+    
+    // トラックのサンプル長取得
+    int getTrackLength(int trackId) const
+    {
+        if (auto it = tracks.find(trackId); it != tracks.end())
+            return it->second.recordLength;
+        return 0;
+    }
+
+    // トラックの録音開始位置（グローバル位置）を取得
+    int getTrackRecordStart(int trackId) const
+    {
+        if (auto it = tracks.find(trackId); it != tracks.end())
+             return it->second.recordStartSample; // グローバルサンプル数
+        return 0;
+    }
+    
+    // マスター作成時の開始絶対位置を取得 (トラックの相対位置計算用)
+    int getMasterStartSample() const { return masterStartSample; }
+
 
 private:
 

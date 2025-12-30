@@ -101,11 +101,22 @@ void LooperAudio::stopRecording(int trackId)
         masterTrackId = trackId;
         masterLoopLength = recordedLength;
         track.lengthInSample = masterLoopLength;
-        masterStartSample = track.recordStartSample;
+        
+        // マスターの開始位置を設定 (無効な値は0にフォールバック)
+        masterStartSample = (track.recordStartSample >= 0) ? track.recordStartSample : 0;
+        
+        // トラックの開始位置も同様に補正
+        if (track.recordStartSample < 0)
+            track.recordStartSample = 0;
+
+        // 🌀 マスターループが設定された時点でプレイヘッド位置をリセット
+        // これにより再生開始時に12時の位置から始まる
+        masterReadPosition = 0;
 
         DBG("🎛 Master loop length set to " << masterLoopLength
             << " samples | recorded=" << recordedLength
-            << " | masterStart=" << masterStartSample);
+            << " | masterStart=" << masterStartSample
+            << " | readPos reset to 0");
     }
     else
     {
