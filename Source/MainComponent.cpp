@@ -285,6 +285,9 @@ void MainComponent::paint(juce::Graphics& g)
 void MainComponent::resized() 
 {
 	auto area = getLocalBounds().reduced(15);
+	
+	// ⬇️ Pizzaを50px下げるためのスペーサー
+	area.removeFromTop(50);
 
 	// 🍕 ピザエリアを確保
 	auto pizzaArea = area.removeFromTop(pizzaVisualArea);

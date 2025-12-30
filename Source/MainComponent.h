@@ -72,10 +72,10 @@ public juce::Timer
 	std::vector<std::unique_ptr<LooperTrackUi>> trackUIs;
 	LooperTrackUi* selectedTrack = nullptr;
 
-	const int pizzaVisualArea = 300;
+	const int pizzaVisualArea = 250;
 	const int topHeight = 40;
 	const int trackWidth = 80;
-	const int trackHeight = 300;
+	const int trackHeight = 350;
 	const int spacing = 10;
 	const int tracksPerRow = 8;
 //pizzaスペース仮置き用コード
