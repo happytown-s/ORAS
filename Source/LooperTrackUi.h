@@ -85,7 +85,23 @@ class LooperTrackUi : public juce::Component,juce::Timer
     };
 
     FaderLookAndFeel faderLookAndFeel;
-	juce::Slider gainSlider;
+    
+    // Custom Slider for Right-Click Reset
+    class ResetSlider : public juce::Slider
+    {
+    public:
+        void mouseDown(const juce::MouseEvent& e) override
+        {
+            if (e.mods.isRightButtonDown())
+            {
+                setValue(0.75); // Reset to Default
+                return;
+            }
+            juce::Slider::mouseDown(e);
+        }
+    };
+    
+	ResetSlider gainSlider;
 	float currentRmsLevel = 0.0f;
 
 public:

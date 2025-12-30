@@ -98,16 +98,38 @@ void LooperTrackUi::paint(juce::Graphics& g)
 	// レベルバー
 	if (currentRmsLevel > 0.0f)
 	{
-		float levelHeight = meterArea.getHeight() * juce::jmin(currentRmsLevel * 4.0f, 1.0f); // ゲイン少し上げて表示
+        // Sensitivity: *2.5 for visibility
+		float levelHeight = meterArea.getHeight() * juce::jlimit(0.0f, 1.0f, currentRmsLevel * 2.5f); 
 		juce::Rectangle<float> levelRect(meterArea.getX(), 
 										 meterArea.getBottom() - levelHeight, 
 										 meterArea.getWidth(), 
 										 levelHeight);
 		
-		g.setColour(ThemeColours::PlayingGreen);
-		if (currentRmsLevel > 0.8f) g.setColour(ThemeColours::RecordingRed);
-		
+        // Futuristic Gradient (Vertical: Cyan -> Blue -> Magenta)
+        juce::ColourGradient gradient(ThemeColours::NeonCyan, meterArea.getX(), meterArea.getBottom(),
+                                      ThemeColours::NeonMagenta, meterArea.getX(), meterArea.getY(), false);
+        gradient.addColour(0.5, ThemeColours::ElectricBlue);
+        
+		g.setGradientFill(gradient);
 		g.fillRoundedRectangle(levelRect, 3.0f);
+        
+        // Digital Grid Lines
+        g.setColour(juce::Colours::black.withAlpha(0.3f));
+        for (int i = 1; i < 10; ++i) 
+        {
+            float y = meterArea.getBottom() - (meterArea.getHeight() * (i / 10.0f));
+            if (y > levelRect.getY()) // Only draw inside the bar or over it? 
+                // Draw over the whole meter area to show scale?
+                // Visual consistency: Draw over the lit part to segment it.
+                g.drawLine(meterArea.getX(), y, meterArea.getRight(), y, 1.0f);
+        }
+        
+        // Peak Indicator
+        if (currentRmsLevel * 2.5f >= 1.0f)
+        {
+             g.setColour(ThemeColours::RecordingRed);
+             g.drawRoundedRectangle(meterArea, 3.0f, 2.0f);
+        }
 	}
 }
 

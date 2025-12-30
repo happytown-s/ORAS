@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include "SettingsComponent.h"
 
 //==============================================================================
 MainComponent::MainComponent()
@@ -216,11 +217,15 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 		if (!anyRecording)
 		{
 			// 🟢 新規録音を開始
+            // Prepare lookback data from buffer
+            juce::AudioBuffer<float> lookback;
+            inputTap.getManager().getLookbackData(lookback);
+
 			for (auto& t : trackUIs)
 			{
 				if (t->getIsSelected())
 				{
-					looper.startRecording(t->getTrackId());
+					looper.startRecordingWithLookback(t->getTrackId(), lookback);
 
 					juce::MessageManager::callAsync([this, &trig, &t]()
 					{t->setState(LooperTrackUi::TrackState::Recording);
@@ -390,18 +395,12 @@ void MainComponent::trackClicked(LooperTrackUi* clickedTrack)
 
 void MainComponent::showDeviceSettings()
 {
-	auto* selector = new juce::AudioDeviceSelectorComponent(
-															deviceManager,
-															0, 2,   // min/max input
-															0, 2,   // min/max output
-															false, false,
-															true, true
-															);
-	selector->setSize(520, 360);
+	auto* settingsComp = new SettingsComponent(deviceManager, inputTap.getManager());
+    settingsComp->setSize(550, 450);
 
 	juce::DialogWindow::LaunchOptions opts;
-	opts.dialogTitle = "Audio Device Settings";
-	opts.content.setOwned(selector);
+	opts.dialogTitle = "Audio Device & Trigger Settings";
+	opts.content.setOwned(settingsComp);
 	opts.componentToCentreAround = this;
 	opts.useNativeTitleBar = true;
 	opts.escapeKeyTriggersCloseButton = true;
@@ -651,8 +650,9 @@ void MainComponent::saveAudioDeviceSettings()
 		if (xml != nullptr)
 		{
 			appProperties->setValue("audioDeviceState", xml.get());
+			appProperties->setValue("triggerThreshold", inputTap.getManager().getConfig().userThreshold);
 			appProperties->saveIfNeeded();
-			DBG("🔧 Audio device settings saved");
+			DBG("🔧 Audio device settings & Trigger Threshold saved");
 		}
 	}
 }
@@ -675,5 +675,12 @@ void MainComponent::loadAudioDeviceSettings()
 		{
 			DBG("ℹ️ No saved audio settings found, using defaults");
 		}
+
+        // Restore Trigger Threshold
+        double savedThresh = appProperties->getDoubleValue("triggerThreshold", 0.1);
+        auto conf = inputTap.getManager().getConfig();
+        conf.userThreshold = (float)savedThresh;
+        inputTap.getManager().setConfig(conf);
+        DBG("✅ Trigger Threshold restored: " << savedThresh);
 	}
 }

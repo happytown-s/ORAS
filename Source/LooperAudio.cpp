@@ -60,6 +60,7 @@ void LooperAudio::startRecording(int trackId)
         // マスターの位置に同期させる
         track.writePosition = masterReadPosition;
         track.recordStartSample = masterReadPosition;
+        track.recordingStartPhase = masterReadPosition;
         DBG("🎬 Start recording track " << trackId
             << " aligned with master at position " << masterReadPosition);
     }
@@ -82,6 +83,74 @@ void LooperAudio::startRecording(int trackId)
     track.buffer.clear();
 
     listeners.call([&](Listener& l) { l.onRecordingStarted(trackId); });
+}
+
+void LooperAudio::startRecordingWithLookback(int trackId, const juce::AudioBuffer<float>& lookbackData)
+{
+    // First, standard start
+    startRecording(trackId);
+
+    if (auto it = tracks.find(trackId); it != tracks.end())
+    {
+        auto& track = it->second;
+        int numLookback = lookbackData.getNumSamples();
+        if (numLookback <= 0) return;
+
+        // Loop limit definition
+        const int loopLimit = (masterLoopLength > 0) ? masterLoopLength : maxSamples;
+
+        // Calculate write start position (go back in time)
+        int startWritePos = track.writePosition - numLookback;
+        while (startWritePos < 0) startWritePos += loopLimit;
+
+        // Limit lookback to loop size (sanity check)
+        int samplesToCopy = numLookback;
+        if (masterLoopLength > 0 && samplesToCopy > masterLoopLength)
+            samplesToCopy = masterLoopLength;
+
+        // --- Wrap-around Copy Logic ---
+        int currentWritePos = startWritePos;
+        int lookbackOffset = 0;
+        int remaining = samplesToCopy;
+
+        while (remaining > 0)
+        {
+            int samplesToEnd = loopLimit - currentWritePos;
+            int chunk = juce::jmin(remaining, samplesToEnd);
+
+            // Channel mapping (handle Mono to Stereo if needed)
+            for (int ch = 0; ch < track.buffer.getNumChannels(); ++ch)
+            {
+                int srcCh = (ch < lookbackData.getNumChannels()) ? ch : 0;
+                track.buffer.copyFrom(ch, currentWritePos, lookbackData, srcCh, lookbackOffset, chunk);
+            }
+
+            currentWritePos = (currentWritePos + chunk) % loopLimit;
+            lookbackOffset += chunk;
+            remaining -= chunk;
+        }
+
+        // --- Update Track State ---
+        if (masterLoopLength <= 0)
+        {
+            // Master creation mode: adjust pointers forward
+            track.recordLength += samplesToCopy;
+            track.writePosition = currentWritePos; // Should match internal calc
+            
+            // Adjust global start time backward to reflect earlier start
+            track.recordStartSample = currentSamplePosition - samplesToCopy;
+            track.recordingStartPhase = (track.recordingStartPhase - samplesToCopy + loopLimit) % loopLimit;
+        }
+        else
+        {
+            // Slave mode: We pre-filled buffer sections.
+            // Increase recorded length so loop completes sooner (as we already have data)
+            track.recordLength += samplesToCopy;
+            track.recordingStartPhase = (track.recordingStartPhase - samplesToCopy + loopLimit) % loopLimit;
+        }
+
+        DBG("🔙 Lookback injected: " << samplesToCopy << " samples. Adjusted start: " << track.recordStartSample);
+    }
 }
 
 //------------------------------------------------------------
@@ -126,8 +195,10 @@ void LooperAudio::stopRecording(int trackId)
         aligned.clear();
 
         // 単純コピーではなく、循環バッファの展開が必要な場合があるが、
-        // ここでは簡易的に先頭からのコピーとしている（用途による）
-        const int copyLen = juce::jmin(recordedLength, masterLoopLength);
+        // RecordIntoTracksで既にPhase Alignment（ラップアラウンド書き込み）されているため、
+        // 単純に0からMasterLength分コピーすれば、正しい位置にデータが存在する。
+        // 部分的な録音（Wraparound含む）の場合も、Buffer全体をコピーしないとデータが欠落する。
+        const int copyLen = masterLoopLength;
         
         // 注: バッファがラップしている可能性を考慮して copyFrom を使うべきですが、
         // ここでは一旦単純化しています。本来は recordIntoTracks と同様の周回コピーが必要です。
@@ -137,7 +208,13 @@ void LooperAudio::stopRecording(int trackId)
         // 🎯 整列済みループを保存
         track.buffer.makeCopyOf(aligned);
         track.lengthInSample = masterLoopLength;
-        track.recordLength = copyLen;
+        track.recordLength = recordedLength; // メタデータとしては実際の録音長を保持
+
+        // 🟢 Reset recordStartSample to MATCH MASTER START
+        // Since the buffer content is now physically aligned to the master loop (indexes match),
+        // we must treat this track as starting at the same global time as the master.
+        // This prevents the visualizer from applying a double-offset (Buffer Offset + Time Offset).
+        track.recordStartSample = masterStartSample;
 
         DBG("🟢 Track " << trackId << ": aligned to master (length " << masterLoopLength << ")");
     }
@@ -333,6 +410,9 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             float r2 = track.buffer.getRMSLevel(0, 0, part2);
             rmsValue = (r1 + r2) * 0.5f; // 簡易平均
         }
+        
+        // 🎚 Apply Fader Gain (Post-Fader Metering)
+        rmsValue *= track.gain;
         // Apply decay smoothing: rise immediately, fall slowly
         constexpr float decayRate = 0.95f;  // Higher = slower decay
         if (rmsValue > track.currentLevel)

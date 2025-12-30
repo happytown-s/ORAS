@@ -65,7 +65,7 @@ public:
         if (samplesPerPoint < 1) return;
 
         juce::Path newPath;
-        const float maxAmpWidth = 0.15f; 
+        const float maxAmpWidth = 0.3f; // Increased for more visible waves
 
         for (int i = 0; i <= points; ++i)
         {
@@ -79,14 +79,19 @@ public:
             rms /= (float)samplesPerPoint;
             rms = std::pow(rms, 0.6f);
 
-            double progress = (double)i / (double)points;
+            // 精度向上のため、サンプル数ベースで進行度を計算
+            // `i / points` だと割り切りれない場合に末尾が引き伸ばされてズレる要因になる
+            double currentSamplePos = (double)(i * samplesPerPoint);
+            double progressRaw = currentSamplePos / (double)trackLengthSamples;
             
             // 角度計算: 
             // 開始角(startAngleRatio) + 進行角(progress * loopRatio)
-            double currentAngleRatio = startAngleRatio + (progress * loopRatio);
-            
-            // 2PIを掛けて、3時方向からスタート (プレイヘッドと同じオフセット)
-            float angle = (float)(juce::MathConstants<double>::twoPi * currentAngleRatio);
+            double currentAngleRatio = startAngleRatio + (progressRaw * loopRatio);
+
+            // 3時(0度)開始 + レイテンシー補正
+            // レイテンシー補正: 出力バッファ分(約512サンプル)だけ波形を時計回りにずらす
+            double latencyDelay = 1024.0 / (double)trackLengthSamples;
+            float angle = (float)(juce::MathConstants<double>::twoPi * (currentAngleRatio + latencyDelay));
             
             float rInner = 1.0f - (rms * maxAmpWidth);
             float xIn = rInner * std::cos(angle);
@@ -109,9 +114,13 @@ public:
             rms /= (float)samplesPerPoint;
             rms = std::pow(rms, 0.6f);
 
-            double progress = (double)i / (double)points;
-            double currentAngleRatio = startAngleRatio + (progress * loopRatio);
-            float angle = (float)(juce::MathConstants<double>::twoPi * currentAngleRatio);
+            double currentSamplePos = (double)(i * samplesPerPoint);
+            double progressRaw = currentSamplePos / (double)trackLengthSamples;
+            
+            double currentAngleRatio = startAngleRatio + (progressRaw * loopRatio);
+            
+            double latencyDelay = 1024.0 / (double)trackLengthSamples;
+            float angle = (float)(juce::MathConstants<double>::twoPi * (currentAngleRatio + latencyDelay));
             
             float rOuter = 1.0f + (rms * maxAmpWidth);
             float xOut = rOuter * std::cos(angle);
@@ -161,35 +170,48 @@ public:
         g.setColour(ThemeColours::MetalGray.withAlpha(0.3f));
         g.drawEllipse(bounds.withSizeKeepingCentre(radius * 2.1f, radius * 2.1f), 1.0f);
 
-        // --- Draw Concentric Waveforms ---
+        // --- Draw Concentric Waveforms with Glow ---
         for (int i = 0; i < (int)waveformPaths.size(); ++i)
         {
             const auto& wp = waveformPaths[i];
             
-            float scaleLayer = 1.0f - (float)i * 0.2f;
+            float scaleLayer = 1.0f - (float)i * 0.18f;
             if (scaleLayer <= 0.1f) continue;
             
             float finalScale = radius * scaleLayer;
-            float alpha = 0.8f - (float)i * 0.15f; 
+            float baseAlpha = 0.9f - (float)i * 0.12f; 
             
-            g.setColour(wp.colour.withAlpha(juce::jlimit(0.1f, 1.0f, alpha)));
-
             auto transform = juce::AffineTransform::scale(finalScale, finalScale)
                                                    .translated(centre.x, centre.y);
             
             juce::Path p = wp.path;
             p.applyTransform(transform);
             
-            g.fillPath(p); // 太さのあるパスなのでfillPath
+            // Outer glow layers (luminous effect)
+            for (int glow = 3; glow >= 1; --glow)
+            {
+                float glowAlpha = baseAlpha * 0.15f / (float)glow;
+                g.setColour(wp.colour.withAlpha(juce::jlimit(0.05f, 0.4f, glowAlpha)));
+                g.strokePath(p, juce::PathStrokeType(glow * 3.0f));
+            }
             
-            // 枠線も少し描くと締まる
-            g.setColour(wp.colour.withAlpha(juce::jlimit(0.1f, 1.0f, alpha + 0.2f)));
+            // Main fill with gradient-like brightness
+            g.setColour(wp.colour.withAlpha(juce::jlimit(0.3f, 0.85f, baseAlpha)));
+            g.fillPath(p);
+            
+            // Inner bright stroke (core light)
+            g.setColour(wp.colour.brighter(0.4f).withAlpha(juce::jlimit(0.4f, 1.0f, baseAlpha + 0.3f)));
+            g.strokePath(p, juce::PathStrokeType(1.5f));
+            
+            // Hot center line (brightest)
+            g.setColour(juce::Colours::white.withAlpha(juce::jlimit(0.1f, 0.5f, baseAlpha * 0.6f)));
             g.strokePath(p, juce::PathStrokeType(0.5f));
         }
         
         // --- Draw Playhead ---
         if (currentPlayHeadPos >= 0.0f)
         {
+            // 3時(0度)開始
             float angle = currentPlayHeadPos * juce::MathConstants<float>::twoPi;
             
             // プレイヘッドライン (レーダーのように中心から外へ)
@@ -225,6 +247,7 @@ public:
         
         for (int i = 0; i < numBars; ++i)
         {
+            // 3時(0度)開始
             float angle = (float)i / (float)numBars * juce::MathConstants<float>::twoPi;
             float level = scopeData[i * 2]; // Sample every other data point
             float barHeight = level * maxBarHeight;

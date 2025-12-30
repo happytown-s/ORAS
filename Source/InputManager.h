@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "TriggerEvent.h"
+#include "AudioInputBuffer.h"
 
 struct SmartRecConfig
 {
@@ -63,7 +64,7 @@ private:
 	void updateStateMachine();
 
 	//===内部データ===
-//	RingBuffer ringBuffer;
+    AudioInputBuffer inputBuffer; // Ring Buffer for 2-stage trigger
 
 	SmartRecConfig config;
 	juce::TriggerEvent triggerEvent;
@@ -74,4 +75,13 @@ private:
 	
 	float smoothedEnergy = 0.0f;
 
+public:
+    // Lookback wrapper
+    void getLookbackData(juce::AudioBuffer<float>& dest) { inputBuffer.getLookbackData(dest); }
+    AudioInputBuffer& getInputBuffer() { return inputBuffer; }
+    
+    float getCurrentLevel() const { return currentLevel.load(); }
+
+private:
+    std::atomic<float> currentLevel { 0.0f };
 };

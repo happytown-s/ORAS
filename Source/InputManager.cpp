@@ -18,12 +18,11 @@ void InputManager::prepare(double newSampleRate, int bufferSize)
 	triggerEvent.reset();
 	smoothedEnergy = 0.0f;
 
-	//あとでRingBufferの準備を追加
-	//ringBuffer.prepare(numChannels, bufferSize * 8);
+	// Prepare ring buffer (2 seconds)
+    inputBuffer.prepare(sampleRate, 2);
 
 	DBG("InputManager::prepare sampleRate = " << sampleRate << "bufferSize = " << bufferSize);
-
-
+    DBG("AudioInputBuffer initialized.");
 }
 
 void InputManager::reset()
@@ -32,7 +31,7 @@ void InputManager::reset()
 	recording = false;
 	triggerEvent.sampleInBlock = -1;
 	triggerEvent.absIndex = -1;
-	recording = false;
+    // inputBuffer.clear(); // Optional: clear buffer on reset
 	DBG("InputManager::reset()");
 }
 
@@ -42,28 +41,54 @@ void InputManager::reset()
 
 void InputManager::analyze(const juce::AudioBuffer<float>& input)
 {
-	//float energy = computeEnergy(input);
+    const int numSamples = input.getNumSamples();
+    if (numSamples == 0) return;
 
-	// (1) ブロック内でしきい値検知を実行
-	bool trig = detectTriggerSample(input);
+    // Use channel 0 for trigger analysis and buffering (Mono support for now)
+    const float* readPtr = input.getReadPointer(0);
+    
+    // 1. Write to Ring Buffer
+    inputBuffer.write(readPtr, numSamples);
 
-	// (2) 状態更新
+    // Calculate level for UI
+    float maxAmp = 0.0f;
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float absSamp = std::abs(readPtr[i]);
+        if (absSamp > maxAmp) maxAmp = absSamp;
+    }
+    currentLevel.store(maxAmp); // Update atomic level
+
+	// 2. Process Triggers (2-stage logic)
+    // Low threshold = silence threshold (noise floor)
+    // High threshold = user threshold
+    bool trig = inputBuffer.processTriggers(readPtr, numSamples, 
+                                            config.silenceThreshold, 
+                                            config.userThreshold);
+
+	// 3. State Update
 	if (trig && !triggered)
 	{
 		triggered = true;
-		//トリガー値を更新(仮、　absIndexはあとでリングバッファ実装時に設定 )
-		triggered = true;
+        // Fire trigger! AbsIndex is managed by AudioInputBuffer internally mostly,
+        // but we signal capability via the event.
 		triggerEvent.fire(0, -1);
-		//DBG("Trigger ON | energy = " << smoothedEnergy);
+		DBG("🔥 Trigger Fired! High threshold exceeded.");
 	}
-	else if(!trig && triggered)
+	else if (triggered)
 	{
-		triggered = false;
-		triggerEvent.reset();
-
-		//DBG("Trigger OFF | energy = " << smoothedEnergy);
+        // 🔄 Auto-Reset logic:
+        // We only reset 'triggered' when the input signal drops below silence threshold
+        // (i.e. Low Threshold) for a sufficient time.
+        // AudioInputBuffer handles this logic via 'inPreRoll' state.
+        
+        if (!inputBuffer.isInPreRoll())
+        {
+            triggered = false;
+            triggerEvent.reset();
+            DBG("🔄 Trigger Re-armed (Silence detected)");
+        }
 	}
-	updateStateMachine();
 }
 
 //==============================================================================

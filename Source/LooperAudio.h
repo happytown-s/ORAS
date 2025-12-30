@@ -41,6 +41,7 @@ class LooperAudio
 //トラック操作
 	void addTrack(int trackId);
 	void startRecording(int trackId);
+    void startRecordingWithLookback(int trackId, const juce::AudioBuffer<float>& lookbackData);
 	void stopRecording(int trackId);
 	void startPlaying(int trackId);
 	void stopPlaying(int trackId);
@@ -78,6 +79,7 @@ private:
 		int readPosition = 0;
 		int recordLength = 0;
 		int recordStartSample = 0; //グローバル位置での録音開始サンプル
+		int recordingStartPhase = 0; // マスター基準の録音開始位相 (0~masterLength)
 		int lengthInSample = 0; //トラックの長さ
 		float currentLevel = 0.0f;
 		float gain = 1.0f;
@@ -115,11 +117,19 @@ public:
 
     int getMasterLoopLength() const { return masterLoopLength; }
     
-    // トラックのサンプル長取得
+    // トラックのサンプル長取得 (アライメント後の長さ)
     int getTrackLength(int trackId) const
     {
         if (auto it = tracks.find(trackId); it != tracks.end())
+        {
+            // スレーブトラックはアライメント後、masterLoopLength と同じ長さのバッファになる
+            // recordLength は実際に録音した長さ（メタデータ）
+            // lengthInSample がループとして再生される長さ
+            if (it->second.lengthInSample > 0)
+                return it->second.lengthInSample;
+            // マスタートラック（まだ lengthInSample が設定されていない場合）
             return it->second.recordLength;
+        }
         return 0;
     }
 
@@ -137,12 +147,8 @@ public:
 
 private:
 
-
-
-
 	std::map<int, TrackData> tracks;
 	std::optional<TrackHistory> lastHistory;
-
 
 	double sampleRate;
 	int maxSamples;
