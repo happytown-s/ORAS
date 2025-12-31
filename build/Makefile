@@ -175,6 +175,19 @@ Looper/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Looper.dir/build.make CMakeFiles/Looper.dir/build
 .PHONY : Looper/fast
 
+#=============================================================================
+# Target rules for targets named Assets
+
+# Build rule for target.
+Assets: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 Assets
+.PHONY : Assets
+
+# fast build rule for target.
+Assets/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Assets.dir/build.make CMakeFiles/Assets.dir/build
+.PHONY : Assets/fast
+
 Source/InputManager.o: Source/InputManager.cpp.o
 .PHONY : Source/InputManager.o
 
@@ -727,6 +740,30 @@ Users/mtsh/JUCE/modules/juce_gui_extra/juce_gui_extra.mm.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Looper.dir/build.make CMakeFiles/Looper.dir/Users/mtsh/JUCE/modules/juce_gui_extra/juce_gui_extra.mm.s
 .PHONY : Users/mtsh/JUCE/modules/juce_gui_extra/juce_gui_extra.mm.s
 
+juce_binarydata_Assets/JuceLibraryCode/BinaryData1.o: juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.o
+.PHONY : juce_binarydata_Assets/JuceLibraryCode/BinaryData1.o
+
+# target to build an object file
+juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Assets.dir/build.make CMakeFiles/Assets.dir/juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.o
+.PHONY : juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.o
+
+juce_binarydata_Assets/JuceLibraryCode/BinaryData1.i: juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.i
+.PHONY : juce_binarydata_Assets/JuceLibraryCode/BinaryData1.i
+
+# target to preprocess a source file
+juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Assets.dir/build.make CMakeFiles/Assets.dir/juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.i
+.PHONY : juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.i
+
+juce_binarydata_Assets/JuceLibraryCode/BinaryData1.s: juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.s
+.PHONY : juce_binarydata_Assets/JuceLibraryCode/BinaryData1.s
+
+# target to generate assembly for a file
+juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Assets.dir/build.make CMakeFiles/Assets.dir/juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.s
+.PHONY : juce_binarydata_Assets/JuceLibraryCode/BinaryData1.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -739,6 +776,7 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
+	@echo "... Assets"
 	@echo "... Looper"
 	@echo "... Source/InputManager.o"
 	@echo "... Source/InputManager.i"
@@ -809,6 +847,9 @@ help:
 	@echo "... Users/mtsh/JUCE/modules/juce_gui_extra/juce_gui_extra.o"
 	@echo "... Users/mtsh/JUCE/modules/juce_gui_extra/juce_gui_extra.i"
 	@echo "... Users/mtsh/JUCE/modules/juce_gui_extra/juce_gui_extra.s"
+	@echo "... juce_binarydata_Assets/JuceLibraryCode/BinaryData1.o"
+	@echo "... juce_binarydata_Assets/JuceLibraryCode/BinaryData1.i"
+	@echo "... juce_binarydata_Assets/JuceLibraryCode/BinaryData1.s"
 .PHONY : help
 
 

@@ -85,4 +85,5 @@ set(CMAKE_MAKEFILE_PRODUCTS
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/Looper.dir/DependInfo.cmake"
+  "CMakeFiles/Assets.dir/DependInfo.cmake"
   )

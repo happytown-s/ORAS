@@ -19,6 +19,9 @@ public:
         for (int i = 0; i < numParticles; ++i)
             resetParticle(i);
     }
+    
+    // デバッグ用直線波形表示のオン/オフ
+    bool showLinearDebug = false;
 
     void pushBuffer(const juce::AudioBuffer<float>& buffer)
     {
@@ -227,16 +230,18 @@ public:
         drawParticles(g, centre, radius);
 
         // --- 2. Pulsating Core ---
-        float bassLevel = scopeData[0] * 0.5f + scopeData[1] * 0.3f + scopeData[2] * 0.2f;
+        float bassLevel = juce::jlimit(0.0f, 1.0f, scopeData[0] * 0.5f + scopeData[1] * 0.3f + scopeData[2] * 0.2f);
         float coreRadius = radius * (0.15f + bassLevel * 0.15f);
         
-        juce::ColourGradient coreGrad(ThemeColours::NeonCyan.withAlpha(0.6f * (0.5f + bassLevel)), centre.x, centre.y,
+        float coreAlpha = juce::jlimit(0.0f, 1.0f, 0.6f * (0.5f + bassLevel));
+        juce::ColourGradient coreGrad(ThemeColours::NeonCyan.withAlpha(coreAlpha), centre.x, centre.y,
                                      ThemeColours::NeonCyan.withAlpha(0.0f), centre.x + coreRadius, centre.y + coreRadius, true);
         g.setGradientFill(coreGrad);
         g.fillEllipse(centre.x - coreRadius, centre.y - coreRadius, coreRadius * 2.0f, coreRadius * 2.0f);
         
         // Core center light
-        g.setColour(juce::Colours::white.withAlpha(0.4f * (0.3f + bassLevel)));
+        float centerAlpha = juce::jlimit(0.0f, 1.0f, 0.4f * (0.3f + bassLevel));
+        g.setColour(juce::Colours::white.withAlpha(centerAlpha));
         g.fillEllipse(centre.x - 2.0f, centre.y - 2.0f, 4.0f, 4.0f);
 
         g.setColour(ThemeColours::MetalGray.withAlpha(0.3f));
@@ -345,13 +350,15 @@ public:
             g.drawLine(innerPoint.x, innerPoint.y, outerPoint.x, outerPoint.y, 2.5f);
             
             // Small bright tip point
-            g.setColour(juce::Colours::white.withAlpha(level * 0.8f));
+            g.setColour(juce::Colours::white.withAlpha(juce::jlimit(0.0f, 1.0f, level * 0.8f)));
             g.fillEllipse(outerPoint.x - 1.5f, outerPoint.y - 1.5f, 3.0f, 3.0f);
         }
         
         // ========================================
         // 🔍 DEBUG: Linear Waveform View (Right Side)
         // ========================================
+        if (showLinearDebug)
+        {
         const float linearAreaX = bounds.getWidth() * 0.68f;
         const float linearAreaY = 20.0f;
         const float linearAreaWidth = bounds.getWidth() * 0.30f;
@@ -415,6 +422,7 @@ public:
             g.setColour(juce::Colours::white);
             g.drawLine(playheadX, linearAreaY + 5.0f, playheadX, linearAreaY + linearAreaHeight - 5.0f, 2.0f);
         }
+        } // end showLinearDebug
     }
 
 
