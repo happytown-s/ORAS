@@ -25,7 +25,8 @@ public:
         Filter,
         Compressor,
         Delay,
-        Reverb
+        Reverb,
+        BeatRepeat
     };
 
     struct EffectSlot {
@@ -79,6 +80,13 @@ private:
     juce::Label reverbLabel;
     juce::Slider reverbDecaySlider; // RoomSize
     juce::Label reverbDecayLabel;
+    
+    // Beat Repeat
+    juce::Slider repeatDivSlider;
+    juce::Label repeatDivLabel;
+    juce::Slider repeatThreshSlider;
+    juce::Label repeatThreshLabel;
+    juce::TextButton repeatActiveButton { "REPEAT OFF" };
 
     void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& name, const juce::String& style);
     void showEffectMenu(int slotIndex);

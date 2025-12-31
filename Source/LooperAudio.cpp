@@ -387,7 +387,65 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
         }
 
         track.readPosition = readPos;
-        
+
+        // ============ Beat Repeat (Stutter) Logic ============
+        auto& br = track.fx.beatRepeat;
+        if (br.isActive)
+        {
+            // --- 1. Transient Detection (if armed but not repeating) ---
+            if (!br.isRepeating)
+            {
+                // Check current block for peaks
+                float blockPeak = trackBuffer.getMagnitude(0, 0, numSamples);
+                
+                // Simple transient detection: current peak > lastPeak + threshold
+                if (blockPeak > br.lastPeak + br.threshold && blockPeak > 0.05f)
+                {
+                    br.isRepeating = true;
+                    //基準点のキャプチャ（現在のブロックの開始位置を基準にする）
+                    br.repeatSourcePos = (track.readPosition - numSamples + loopLength) % loopLength;
+                    br.repeatLength = loopLength / br.division;
+                    br.currentRepeatPos = 0;
+                    
+                    DBG("🔥 Beat Repeat Triggered! Track " << id << " | Div: " << br.division << " | Pos: " << br.repeatSourcePos);
+                }
+                br.lastPeak = blockPeak * 0.9f; // Decay for next detection
+            }
+
+            // --- 2. Playback Substitution (if repeating) ---
+            if (br.isRepeating)
+            {
+                // Clear the buffer that was just filled with normal playback
+                trackBuffer.clear();
+                
+                int samplesToFill = numSamples;
+                int fillOffset = 0;
+                
+                while (samplesToFill > 0)
+                {
+                    int samplesInSegmentToEnd = br.repeatLength - br.currentRepeatPos;
+                    int chunk = juce::jmin(samplesToFill, samplesInSegmentToEnd);
+                    
+                    int sourceReadPos = (br.repeatSourcePos + br.currentRepeatPos) % loopLength;
+                    
+                    // Copy from captured segment
+                    for (int ch = 0; ch < numChannels; ++ch)
+                    {
+                        trackBuffer.addFrom(ch, fillOffset, track.buffer, ch, sourceReadPos, chunk, track.gain);
+                    }
+                    
+                    br.currentRepeatPos = (br.currentRepeatPos + chunk) % br.repeatLength;
+                    samplesToFill -= chunk;
+                    fillOffset += chunk;
+                }
+            }
+        }
+        else
+        {
+            br.lastPeak = 0.0f;
+            br.isRepeating = false;
+        }
+
         // ============ Per-Track FX Processing ============
         juce::dsp::AudioBlock<float> block(trackBuffer);
         juce::dsp::ProcessContextReplacing<float> context(block);
@@ -704,4 +762,28 @@ void LooperAudio::setTrackReverbRoomSize(int trackId, float size)
         params.roomSize = size;
         it->second.fx.reverb.setParameters(params);
     }
+}
+
+// ================= Beat Repeat Setters =================
+
+void LooperAudio::setTrackBeatRepeatActive(int trackId, bool active)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+    {
+        it->second.fx.beatRepeat.isActive = active;
+        if (!active)
+            it->second.fx.beatRepeat.isRepeating = false;
+    }
+}
+
+void LooperAudio::setTrackBeatRepeatDiv(int trackId, int div)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        it->second.fx.beatRepeat.division = juce::jmax(1, div);
+}
+
+void LooperAudio::setTrackBeatRepeatThresh(int trackId, float thresh)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        it->second.fx.beatRepeat.threshold = thresh;
 }

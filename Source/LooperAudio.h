@@ -94,6 +94,21 @@ private:
         float delayMix = 0.0f;
         float delayFeedback = 0.0f;
         float delayTime = 0.5f; // sec
+
+        // Beat Repeat (Stutter)
+        struct BeatRepeatState
+        {
+            bool isActive = false;      // ON/OFF toggle
+            bool isRepeating = false;   // Currently repeating
+            int division = 4;           // DIV: 4, 8, 16...
+            float threshold = 0.1f;    // Transient detection
+            
+            int repeatSourcePos = 0;    // Start of the loop segment
+            int repeatLength = 0;       // Length of segment
+            int currentRepeatPos = 0;   // Progress in segment
+            
+            float lastPeak = 0.0f;      // For simple attack detection
+        } beatRepeat;
     };
 
 	struct TrackData
@@ -143,6 +158,10 @@ public:
 
     void setTrackCompressor(int trackId, float threshold, float ratio); 
 
+    // Beat Repeat Setters
+    void setTrackBeatRepeatActive(int trackId, bool active);
+    void setTrackBeatRepeatDiv(int trackId, int div);
+    void setTrackBeatRepeatThresh(int trackId, float thresh);
 	// ビジュアライザ用
 	const juce::AudioBuffer<float>* getTrackBuffer(int trackId) const
 	{

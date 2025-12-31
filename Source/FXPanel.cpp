@@ -92,6 +92,33 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
         looper.setTrackReverbRoomSize(currentTrackId, (float)reverbDecaySlider.getValue());
     };
     
+    // --- BEAT REPEAT ---
+    setupSlider(repeatDivSlider, repeatDivLabel, "DIV", "IceBlue");
+    repeatDivSlider.setRange(4, 32, 4);  // 4, 8, 12, 16, 20, 24, 28, 32
+    repeatDivSlider.setValue(4);
+    repeatDivSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+    repeatDivSlider.setNumDecimalPlacesToDisplay(0);
+    repeatDivSlider.onValueChange = [this]() {
+        looper.setTrackBeatRepeatDiv(currentTrackId, (int)repeatDivSlider.getValue());
+    };
+    
+    setupSlider(repeatThreshSlider, repeatThreshLabel, "THRESHOLD", "MagmaRed");
+    repeatThreshSlider.setRange(0.01, 0.5, 0.01);
+    repeatThreshSlider.setValue(0.1);
+    repeatThreshSlider.onValueChange = [this]() {
+        looper.setTrackBeatRepeatThresh(currentTrackId, (float)repeatThreshSlider.getValue());
+    };
+    
+    addChildComponent(repeatActiveButton);
+    repeatActiveButton.setClickingTogglesState(true);
+    repeatActiveButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    repeatActiveButton.setColour(juce::TextButton::buttonOnColourId, ThemeColours::RecordingRed);
+    repeatActiveButton.onClick = [this]() {
+        bool active = repeatActiveButton.getToggleState();
+        repeatActiveButton.setButtonText(active ? "REPEAT ON" : "REPEAT OFF");
+        looper.setTrackBeatRepeatActive(currentTrackId, active);
+    };
+
     updateSliderVisibility();
 }
 
@@ -105,6 +132,8 @@ FXPanel::~FXPanel()
     delayMixSlider.setLookAndFeel(nullptr);
     reverbSlider.setLookAndFeel(nullptr);
     reverbDecaySlider.setLookAndFeel(nullptr);
+    repeatDivSlider.setLookAndFeel(nullptr);
+    repeatThreshSlider.setLookAndFeel(nullptr);
 }
 
 void FXPanel::setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& name, const juce::String& style)
@@ -169,6 +198,11 @@ void FXPanel::updateSliderVisibility()
         case EffectType::Reverb:
             reverbSlider.setVisible(true); reverbLabel.setVisible(true);
             reverbDecaySlider.setVisible(true); reverbDecayLabel.setVisible(true);
+            break;
+        case EffectType::BeatRepeat:
+            repeatActiveButton.setVisible(true);
+            repeatDivSlider.setVisible(true); repeatDivLabel.setVisible(true);
+            repeatThreshSlider.setVisible(true); repeatThreshLabel.setVisible(true);
             break;
         default:
             break;
@@ -316,6 +350,11 @@ void FXPanel::resized()
     if(reverbSlider.isVisible()) {
         placeControls({ {&reverbSlider, &reverbLabel}, {&reverbDecaySlider, &reverbDecayLabel} });
     }
+
+    // BEAT REPEAT
+    if(repeatDivSlider.isVisible()) {
+        placeControls({ {&repeatDivSlider, &repeatDivLabel}, {&repeatThreshSlider, &repeatThreshLabel} }, &repeatActiveButton);
+    }
 }
 
 void FXPanel::mouseDown(const juce::MouseEvent& e)
@@ -354,6 +393,7 @@ void FXPanel::showEffectMenu(int slotIndex)
     m.addItem(2, "Compressor", true, slots[slotIndex].type == EffectType::Compressor);
     m.addItem(3, "Delay", true, slots[slotIndex].type == EffectType::Delay);
     m.addItem(4, "Reverb", true, slots[slotIndex].type == EffectType::Reverb);
+    m.addItem(5, "Beat Repeat", true, slots[slotIndex].type == EffectType::BeatRepeat);
     m.addSeparator();
     m.addItem(99, "Clear", true, false);
 
@@ -366,6 +406,7 @@ void FXPanel::showEffectMenu(int slotIndex)
         else if (result == 2) slots[slotIndex].type = EffectType::Compressor;
         else if (result == 3) slots[slotIndex].type = EffectType::Delay;
         else if (result == 4) slots[slotIndex].type = EffectType::Reverb;
+        else if (result == 5) slots[slotIndex].type = EffectType::BeatRepeat;
         
         updateSliderVisibility();
         repaint();
