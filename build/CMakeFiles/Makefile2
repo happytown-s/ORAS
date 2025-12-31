@@ -63,13 +63,13 @@ CMAKE_BINARY_DIR = /Users/mtsh/書類/code/JUCE/Looper/build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/Looper.dir/all
+all: CMakeFiles/ORAS.dir/all
 all: CMakeFiles/Assets.dir/all
 all: JUCE_build/all
 .PHONY : all
 
 # The main recursive "codegen" target.
-codegen: CMakeFiles/Looper.dir/codegen
+codegen: CMakeFiles/ORAS.dir/codegen
 codegen: CMakeFiles/Assets.dir/codegen
 codegen: JUCE_build/codegen
 .PHONY : codegen
@@ -79,7 +79,7 @@ preinstall: JUCE_build/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/Looper.dir/clean
+clean: CMakeFiles/ORAS.dir/clean
 clean: CMakeFiles/Assets.dir/clean
 clean: JUCE_build/clean
 .PHONY : clean
@@ -165,36 +165,36 @@ JUCE_build/modules/clean:
 .PHONY : JUCE_build/modules/clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/Looper.dir
+# Target rules for target CMakeFiles/ORAS.dir
 
 # All Build rule for target.
-CMakeFiles/Looper.dir/all: CMakeFiles/Assets.dir/all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Looper.dir/build.make CMakeFiles/Looper.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Looper.dir/build.make CMakeFiles/Looper.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28 "Built target Looper"
-.PHONY : CMakeFiles/Looper.dir/all
+CMakeFiles/ORAS.dir/all: CMakeFiles/Assets.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ORAS.dir/build.make CMakeFiles/ORAS.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ORAS.dir/build.make CMakeFiles/ORAS.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30 "Built target ORAS"
+.PHONY : CMakeFiles/ORAS.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/Looper.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles 28
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/Looper.dir/all
+CMakeFiles/ORAS.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles 30
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/ORAS.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles 0
-.PHONY : CMakeFiles/Looper.dir/rule
+.PHONY : CMakeFiles/ORAS.dir/rule
 
 # Convenience name for target.
-Looper: CMakeFiles/Looper.dir/rule
-.PHONY : Looper
+ORAS: CMakeFiles/ORAS.dir/rule
+.PHONY : ORAS
 
 # codegen rule for target.
-CMakeFiles/Looper.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Looper.dir/build.make CMakeFiles/Looper.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28 "Finished codegen for target Looper"
-.PHONY : CMakeFiles/Looper.dir/codegen
+CMakeFiles/ORAS.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ORAS.dir/build.make CMakeFiles/ORAS.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30 "Finished codegen for target ORAS"
+.PHONY : CMakeFiles/ORAS.dir/codegen
 
 # clean rule for target.
-CMakeFiles/Looper.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Looper.dir/build.make CMakeFiles/Looper.dir/clean
-.PHONY : CMakeFiles/Looper.dir/clean
+CMakeFiles/ORAS.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ORAS.dir/build.make CMakeFiles/ORAS.dir/clean
+.PHONY : CMakeFiles/ORAS.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/Assets.dir

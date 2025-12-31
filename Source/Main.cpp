@@ -10,13 +10,13 @@
 #include "MainComponent.h"
 
 //==============================================================================
-class LooperApplication  : public juce::JUCEApplication
+class ORASApplication  : public juce::JUCEApplication
 {
 public:
     //==============================================================================
-    LooperApplication() {}
+    ORASApplication() {}
 
-    const juce::String getApplicationName() override       { return "Looper"; }
+    const juce::String getApplicationName() override       { return "ORAS"; }
     const juce::String getApplicationVersion() override { return JUCE_STRINGIFY(PROJECT_VERSION); }
 
     bool moreThanOneInstanceAllowed() override             { return true; }
@@ -103,4 +103,4 @@ private:
 
 //==============================================================================
 // This macro generates the main() routine that launches the app.
-START_JUCE_APPLICATION (LooperApplication)
+START_JUCE_APPLICATION (ORASApplication)

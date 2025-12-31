@@ -415,6 +415,14 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             // --- 2. Playback Substitution (if repeating) ---
             if (br.isRepeating)
             {
+                // Recalculate repeatLength in case division changed while repeating
+                int newRepeatLength = loopLength / juce::jmax(1, br.division);
+                if (newRepeatLength != br.repeatLength)
+                {
+                    br.repeatLength = newRepeatLength;
+                    br.currentRepeatPos = br.currentRepeatPos % br.repeatLength;
+                }
+                
                 // Clear the buffer that was just filled with normal playback
                 trackBuffer.clear();
                 
@@ -450,11 +458,12 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
         juce::dsp::AudioBlock<float> block(trackBuffer);
         juce::dsp::ProcessContextReplacing<float> context(block);
         
-        // Filter
-        track.fx.filter.process(context);
+        // Filter (only if enabled)
+        if (track.fx.filterEnabled)
+            track.fx.filter.process(context);
         
-        // Delay (Manual Feedback)
-        if (track.fx.delayMix > 0.0f)
+        // Delay (only if enabled and mix > 0)
+        if (track.fx.delayEnabled && track.fx.delayMix > 0.0f)
         {
             auto* left = trackBuffer.getWritePointer(0);
             auto* right = trackBuffer.getWritePointer(1);
@@ -481,8 +490,9 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             }
         }
         
-        // Reverb
-        track.fx.reverb.process(context);
+        // Reverb (only if enabled)
+        if (track.fx.reverbEnabled)
+            track.fx.reverb.process(context);
         
         // Add FX-processed track to final output
         for (int ch = 0; ch < numChannels; ++ch)
@@ -786,4 +796,24 @@ void LooperAudio::setTrackBeatRepeatThresh(int trackId, float thresh)
 {
     if (auto it = tracks.find(trackId); it != tracks.end())
         it->second.fx.beatRepeat.threshold = thresh;
+}
+
+// ================= FX Enable/Disable =================
+
+void LooperAudio::setTrackFilterEnabled(int trackId, bool enabled)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        it->second.fx.filterEnabled = enabled;
+}
+
+void LooperAudio::setTrackDelayEnabled(int trackId, bool enabled)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        it->second.fx.delayEnabled = enabled;
+}
+
+void LooperAudio::setTrackReverbEnabled(int trackId, bool enabled)
+{
+    if (auto it = tracks.find(trackId); it != tracks.end())
+        it->second.fx.reverbEnabled = enabled;
 }

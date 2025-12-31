@@ -148,7 +148,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=Looper
+CMAKE_PROJECT_NAME:STATIC=ORAS
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION:STATIC=1.0.0
@@ -275,6 +275,15 @@ Looper_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 Looper_SOURCE_DIR:STATIC=/Users/mtsh/書類/code/JUCE/Looper
+
+//Value Computed by CMake
+ORAS_BINARY_DIR:STATIC=/Users/mtsh/書類/code/JUCE/Looper/build
+
+//Value Computed by CMake
+ORAS_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+ORAS_SOURCE_DIR:STATIC=/Users/mtsh/書類/code/JUCE/Looper
 
 //Path to a library.
 juce_found_AVFoundation:FILEPATH=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/AVFoundation.framework

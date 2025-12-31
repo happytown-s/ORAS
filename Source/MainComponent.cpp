@@ -181,6 +181,12 @@ MainComponent::MainComponent()
 		if (!isFXMode) {
 			for (auto& t : trackUIs)
 				t->setVisible(areTracksVisible);
+		} else {
+			// Exit FX mode when toggling visual mode
+			isFXMode = false;
+			fxPanel.setVisible(false);
+			for (auto& t : trackUIs)
+				t->setVisible(areTracksVisible);
 		}
 			
 		resized();

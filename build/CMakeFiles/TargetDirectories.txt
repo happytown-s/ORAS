@@ -1,4 +1,4 @@
-/Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles/Looper.dir
+/Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles/ORAS.dir
 /Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles/Assets.dir
 /Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles/edit_cache.dir
 /Users/mtsh/書類/code/JUCE/Looper/build/CMakeFiles/rebuild_cache.dir

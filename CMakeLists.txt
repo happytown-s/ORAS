@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Looper VERSION 1.0.0)
+project(ORAS VERSION 1.0.0)
 
 # 🍏 Apple Silicon 向けビルド設定
 set(CMAKE_OSX_ARCHITECTURES "arm64")
@@ -10,11 +10,11 @@ set(JUCE_DIR "/Users/mtsh/JUCE")
 add_subdirectory(${JUCE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/JUCE_build")
 
 # GUIアプリの定義
-juce_add_gui_app(Looper
+juce_add_gui_app(ORAS
     COMPANY_NAME "BabyLeaf"
-    PRODUCT_NAME "Looper"
-    OUTPUT_NAME "Looper"
-    OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/LooperApp"
+    PRODUCT_NAME "ORAS"
+    OUTPUT_NAME "ORAS"
+    OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/ORASApp"
 )
 
 # バイナリデータ（フォントなど）の定義
@@ -23,7 +23,7 @@ juce_add_binary_data(Assets
         Source/Assets/Orbitron-Bold.ttf
 )
 
-set_target_properties(Looper PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/LooperApp")
+set_target_properties(ORAS PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/ORASApp")
 
 # ソースファイル
 set(SOURCE_FILES
@@ -55,10 +55,10 @@ set(HEADER_FILES
     Source/CircularVisualizer.h
 )
 
-target_sources(Looper PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
+target_sources(ORAS PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 
 # 使用モジュール
-target_link_libraries(Looper PRIVATE
+target_link_libraries(ORAS PRIVATE
     Assets
     juce::juce_gui_basics
     juce::juce_gui_extra

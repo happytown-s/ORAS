@@ -94,12 +94,20 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     
     // --- BEAT REPEAT ---
     setupSlider(repeatDivSlider, repeatDivLabel, "DIV", "IceBlue");
-    repeatDivSlider.setRange(4, 32, 4);  // 4, 8, 12, 16, 20, 24, 28, 32
-    repeatDivSlider.setValue(4);
+    repeatDivSlider.setRange(0, 7, 1);  // Internal: 0-7 -> Maps to 2^n: 1,2,4,8,16,32,64,128
+    repeatDivSlider.setValue(2);  // Default: 4 (2^2)
     repeatDivSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
-    repeatDivSlider.setNumDecimalPlacesToDisplay(0);
+    repeatDivSlider.textFromValueFunction = [](double value) {
+        int div = 1 << static_cast<int>(value);  // 2^value
+        return juce::String(div);
+    };
+    repeatDivSlider.valueFromTextFunction = [](const juce::String& text) {
+        int div = text.getIntValue();
+        return std::log2(std::max(1, div));
+    };
     repeatDivSlider.onValueChange = [this]() {
-        looper.setTrackBeatRepeatDiv(currentTrackId, (int)repeatDivSlider.getValue());
+        int div = 1 << static_cast<int>(repeatDivSlider.getValue());
+        looper.setTrackBeatRepeatDiv(currentTrackId, div);
     };
     
     setupSlider(repeatThreshSlider, repeatThreshLabel, "THRESHOLD", "MagmaRed");
@@ -175,6 +183,10 @@ void FXPanel::updateSliderVisibility()
     
     hide(reverbSlider); hide(reverbLabel);
     hide(reverbDecaySlider); hide(reverbDecayLabel);
+    
+    hide(repeatActiveButton);
+    hide(repeatDivSlider); hide(repeatDivLabel);
+    hide(repeatThreshSlider); hide(repeatThreshLabel);
 
     if (selectedSlotIndex < 0 || selectedSlotIndex >= 4) return;
     
@@ -269,6 +281,7 @@ void FXPanel::paint(juce::Graphics& g)
             case EffectType::Compressor: typeStr = "Comp"; break;
             case EffectType::Delay: typeStr = "Delay"; break;
             case EffectType::Reverb: typeStr = "Reverb"; break;
+            case EffectType::BeatRepeat: typeStr = "Repeat"; break;
             default: typeStr = "Empty"; break;
         }
         
@@ -401,12 +414,40 @@ void FXPanel::showEffectMenu(int slotIndex)
     {
         if (result == 0) return;
         
-        if (result == 99) slots[slotIndex].type = EffectType::None;
-        else if (result == 1) slots[slotIndex].type = EffectType::Filter;
-        else if (result == 2) slots[slotIndex].type = EffectType::Compressor;
-        else if (result == 3) slots[slotIndex].type = EffectType::Delay;
-        else if (result == 4) slots[slotIndex].type = EffectType::Reverb;
-        else if (result == 5) slots[slotIndex].type = EffectType::BeatRepeat;
+        EffectType oldType = slots[slotIndex].type;
+        EffectType newType = EffectType::None;
+        
+        if (result == 99) newType = EffectType::None;
+        else if (result == 1) newType = EffectType::Filter;
+        else if (result == 2) newType = EffectType::Compressor;
+        else if (result == 3) newType = EffectType::Delay;
+        else if (result == 4) newType = EffectType::Reverb;
+        else if (result == 5) newType = EffectType::BeatRepeat;
+        
+        // Disable old effect
+        if (oldType != newType && currentTrackId >= 0)
+        {
+            switch (oldType) {
+                case EffectType::Filter: looper.setTrackFilterEnabled(currentTrackId, false); break;
+                case EffectType::Delay: looper.setTrackDelayEnabled(currentTrackId, false); break;
+                case EffectType::Reverb: looper.setTrackReverbEnabled(currentTrackId, false); break;
+                case EffectType::BeatRepeat: looper.setTrackBeatRepeatActive(currentTrackId, false); break;
+                default: break;
+            }
+        }
+        
+        slots[slotIndex].type = newType;
+        
+        // Enable new effect
+        if (newType != EffectType::None && currentTrackId >= 0)
+        {
+            switch (newType) {
+                case EffectType::Filter: looper.setTrackFilterEnabled(currentTrackId, true); break;
+                case EffectType::Delay: looper.setTrackDelayEnabled(currentTrackId, true); break;
+                case EffectType::Reverb: looper.setTrackReverbEnabled(currentTrackId, true); break;
+                default: break;
+            }
+        }
         
         updateSliderVisibility();
         repaint();

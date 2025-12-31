@@ -88,12 +88,15 @@ private:
         float filterCutoff = 20000.0f;
         float filterRes = 0.707f;
         int   filterType = 0; // 0=LPF, 1=HPF
+        bool  filterEnabled = false;
 
         float reverbMix = 0.0f;
+        bool  reverbEnabled = false;
         
         float delayMix = 0.0f;
         float delayFeedback = 0.0f;
         float delayTime = 0.5f; // sec
+        bool  delayEnabled = false;
 
         // Beat Repeat (Stutter)
         struct BeatRepeatState
@@ -162,6 +165,11 @@ public:
     void setTrackBeatRepeatActive(int trackId, bool active);
     void setTrackBeatRepeatDiv(int trackId, int div);
     void setTrackBeatRepeatThresh(int trackId, float thresh);
+    
+    // FX Enable/Disable
+    void setTrackFilterEnabled(int trackId, bool enabled);
+    void setTrackDelayEnabled(int trackId, bool enabled);
+    void setTrackReverbEnabled(int trackId, bool enabled);
 	// ビジュアライザ用
 	const juce::AudioBuffer<float>* getTrackBuffer(int trackId) const
 	{
