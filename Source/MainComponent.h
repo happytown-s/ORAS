@@ -9,6 +9,7 @@
 #include "ThemeColours.h"
 #include "TransportPanel.h"
 #include "CircularVisualizer.h"
+#include "FXPanel.h"
 
 //==============================================================================
 // ルーパーアプリ本体
@@ -65,6 +66,8 @@ public juce::Timer
 	// ===== UI =====
 	CircularVisualizer visualizer;
 	TransportPanel transportPanel;
+	FXPanel fxPanel;
+	bool isFXMode = false;
 	int selectedTrackId = 0;
 	std::atomic<bool> isStandbyMode { false };
     std::atomic<bool> forceRecordRequest { false };

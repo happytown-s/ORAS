@@ -50,6 +50,14 @@ TransportPanel::TransportPanel(LooperAudio& looperRef)
 	visualModeButton.setColour(juce::TextButton::buttonOnColourId, ThemeColours::NeonCyan.withAlpha(0.3f));
 	visualModeButton.setColour(juce::TextButton::textColourOffId, ThemeColours::NeonCyan);
 	visualModeButton.setColour(juce::TextButton::textColourOnId, ThemeColours::NeonCyan.brighter());
+
+	// FX Button
+	addAndMakeVisible(fxButton);
+	fxButton.addListener(this);
+	fxButton.setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.6f));
+	fxButton.setColour(juce::TextButton::buttonOnColourId, ThemeColours::NeonMagenta.withAlpha(0.3f));
+	fxButton.setColour(juce::TextButton::textColourOffId, ThemeColours::NeonMagenta);
+	fxButton.setColour(juce::TextButton::textColourOnId, ThemeColours::NeonMagenta.brighter());
 }
 
 TransportPanel::~TransportPanel()
@@ -62,6 +70,7 @@ TransportPanel::~TransportPanel()
 	}
 	testButton.removeListener(this);
 	visualModeButton.removeListener(this);
+	fxButton.removeListener(this);
 }
 
 void TransportPanel::setVisualModeButtonText(const juce::String& text)
@@ -78,9 +87,9 @@ void TransportPanel::paint(juce::Graphics& g)
 //================================
 void TransportPanel::resized()
 {
-	auto area = getLocalBounds().reduced(10);
-	const int spacing = 10;
-	const int buttonWidth = 50;  // 幅を50pxに固定
+	auto area = getLocalBounds().reduced(5);
+	const int spacing = 5;  // spacingも縮小してグロー領域を確保
+	const int buttonWidth = 50;  // 幅を50pxに（グロー用余白込み）
 	const int buttonHeight = buttonWidth;  // ラベルなしなので正方形
 	
 	std::vector<juce::TextButton*> buttons =
@@ -94,7 +103,8 @@ void TransportPanel::resized()
 	
 	int totalWidth = buttonWidth * buttons.size() + spacing * (buttons.size() - 1);
 	int startX = area.getX() + (area.getWidth() - totalWidth) / 2;
-	int y = area.getY();
+	// ボタンを垂直方向に中央揃え（グローのために余白を確保）
+	int y = area.getY() + (area.getHeight() - buttonHeight) / 2;
 	
 	for (auto* btn : buttons)
 	{
@@ -102,11 +112,16 @@ void TransportPanel::resized()
 		startX += buttonWidth + spacing;
 	}
 	
-	// テストボタンは右端に配置
-	testButton.setBounds(area.getRight() - 50, y + 10, 45, 30);
+	// テストボタンは右端に配置（ボタンと同じ高さに揃える）
+	int sideButtonH = 30;
+	int sideButtonY = area.getY() + (area.getHeight() - sideButtonH) / 2;
+	testButton.setBounds(area.getRight() - 50, sideButtonY, 45, sideButtonH);
 	
 	// Visual Mode Buttonは左端に配置
-	visualModeButton.setBounds(area.getX(), y + 10, 120, 30);
+	visualModeButton.setBounds(area.getX(), sideButtonY, 120, sideButtonH);
+	
+	// FX Button Position (Right of Visual Mode Button)
+	fxButton.setBounds(visualModeButton.getRight() + 10, sideButtonY, 50, sideButtonH);
 }
 
 
@@ -118,6 +133,11 @@ void TransportPanel::buttonClicked(juce::Button* button)
 	if (button == &visualModeButton)
 	{
 		if (onToggleTracks) onToggleTracks();
+		return;
+	}
+	if (button == &fxButton)
+	{
+		if (onShowFX) onShowFX();
 		return;
 	}
 	if (!onAction) return;

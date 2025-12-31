@@ -14,6 +14,30 @@ LooperAudio::~LooperAudio()
 void LooperAudio::prepareToPlay(int samplesPerBlockExpected, double sr)
 {
     sampleRate = sr;
+    
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = samplesPerBlockExpected;
+    spec.numChannels = 2;
+
+    // Prepare Master FX
+    masterFX.compressor.prepare(spec);
+    masterFX.filter.prepare(spec);
+    masterFX.delay.prepare(spec);
+    masterFX.reverb.prepare(spec);
+    
+    // Defaults
+    masterFX.compressor.setThreshold(0.0f);
+    masterFX.compressor.setRatio(1.0f);
+    
+    masterFX.filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    masterFX.filter.setCutoffFrequency(20000.0f);
+    
+    masterFX.delay.setMaximumDelayInSamples(static_cast<int>(sampleRate * 2.0));
+    
+    juce::dsp::Reverb::Parameters params;
+    params.dryLevel = 1.0f; params.wetLevel = 0.0f; params.roomSize = 0.5f;
+    masterFX.reverb.setParameters(params);
 }
 
 void LooperAudio::processBlock(juce::AudioBuffer<float>& output,
@@ -32,17 +56,18 @@ void LooperAudio::processBlock(juce::AudioBuffer<float>& output,
     {
         output.addFrom(ch, 0, input, ch, 0, numSamples);
     }
+    
+    currentSamplePosition += numSamples;
 }
 
-//------------------------------------------------------------
-// トラック管理
 void LooperAudio::addTrack(int trackId)
 {
-    TrackData track;
+    auto& track = tracks[trackId];
     track.buffer.setSize(2, maxSamples);
     track.buffer.clear();
-    tracks[trackId] = std::move(track);
 }
+
+
 
 void LooperAudio::startRecording(int trackId)
 {
@@ -50,6 +75,20 @@ void LooperAudio::startRecording(int trackId)
     backupTrackBeforeRecord(trackId);
 
     auto& track = tracks[trackId];
+    
+    // Safety: Ensure buffer is full size if we are defining a new master loop
+    if (masterLoopLength <= 0 && track.buffer.getNumSamples() < maxSamples)
+    {
+        track.buffer.setSize(2, maxSamples);
+        DBG("🔧 Resized Track " << trackId << " buffer to maxSamples (" << maxSamples << ")");
+    }
+    // Optimization/Safety: If Slave, ensure at least Master Length
+    else if (masterLoopLength > 0 && track.buffer.getNumSamples() < masterLoopLength)
+    {
+        track.buffer.setSize(2, masterLoopLength);
+        DBG("🔧 Resized Track " << trackId << " buffer to masterLoopLength (" << masterLoopLength << ")");
+    }
+
     track.isRecording = true;
     track.isPlaying = false;
     track.recordLength = 0;
@@ -153,33 +192,25 @@ void LooperAudio::startRecordingWithLookback(int trackId, const juce::AudioBuffe
     }
 }
 
-//------------------------------------------------------------
-
 void LooperAudio::stopRecording(int trackId)
 {
     auto& track = tracks[trackId];
     track.isRecording = false;
 
-    // 現在の録音長を保持
-    const int recordedLength = track.recordLength; // 修正: writePositionではなくrecordLengthを使用
+    const int recordedLength = track.recordLength;
     if (recordedLength <= 0) return;
 
     if (masterLoopLength <= 0)
     {
-        // 録音長をそのままマスター長に採用
         masterTrackId = trackId;
         masterLoopLength = recordedLength;
         track.lengthInSample = masterLoopLength;
         
-        // マスターの開始位置を設定 (無効な値は0にフォールバック)
         masterStartSample = (track.recordStartSample >= 0) ? track.recordStartSample : 0;
         
-        // トラックの開始位置も同様に補正
         if (track.recordStartSample < 0)
             track.recordStartSample = 0;
 
-        // 🌀 マスターループが設定された時点でプレイヘッド位置をリセット
-        // これにより再生開始時に12時の位置から始まる
         masterReadPosition = 0;
 
         DBG("🎛 Master loop length set to " << masterLoopLength
@@ -189,31 +220,19 @@ void LooperAudio::stopRecording(int trackId)
     }
     else
     {
-        // マスター長に合わせてバッファを整列させる処理
         juce::AudioBuffer<float> aligned;
         aligned.setSize(2, masterLoopLength, false, false, true);
         aligned.clear();
 
-        // 単純コピーではなく、循環バッファの展開が必要な場合があるが、
-        // RecordIntoTracksで既にPhase Alignment（ラップアラウンド書き込み）されているため、
-        // 単純に0からMasterLength分コピーすれば、正しい位置にデータが存在する。
-        // 部分的な録音（Wraparound含む）の場合も、Buffer全体をコピーしないとデータが欠落する。
         const int copyLen = masterLoopLength;
         
-        // 注: バッファがラップしている可能性を考慮して copyFrom を使うべきですが、
-        // ここでは一旦単純化しています。本来は recordIntoTracks と同様の周回コピーが必要です。
         aligned.copyFrom(0, 0, track.buffer, 0, 0, copyLen);
         aligned.copyFrom(1, 0, track.buffer, 1, 0, copyLen);
 
-        // 🎯 整列済みループを保存
         track.buffer.makeCopyOf(aligned);
         track.lengthInSample = masterLoopLength;
-        track.recordLength = recordedLength; // メタデータとしては実際の録音長を保持
+        track.recordLength = recordedLength; 
 
-        // 🟢 Reset recordStartSample to MATCH MASTER START
-        // Since the buffer content is now physically aligned to the master loop (indexes match),
-        // we must treat this track as starting at the same global time as the master.
-        // This prevents the visualizer from applying a double-offset (Buffer Offset + Time Offset).
         track.recordStartSample = masterStartSample;
 
         DBG("🟢 Track " << trackId << ": aligned to master (length " << masterLoopLength << ")");
@@ -229,7 +248,6 @@ void LooperAudio::startPlaying(int trackId)
         auto& track = it->second;
         track.isPlaying = true;
 
-        // 🔥 再生開始位置をマスター位置に合わせる
         if (masterLoopLength > 0)
         {
             track.readPosition = masterReadPosition % masterLoopLength;
@@ -256,9 +274,6 @@ void LooperAudio::clearTrack(int trackId)
         it->second.buffer.clear();
 }
 
-//==============================================================================
-// 🛠️ 【修正箇所】録音処理 (Wraparound対応 & 初期録音対応)
-//==============================================================================
 void LooperAudio::recordIntoTracks(const juce::AudioBuffer<float>& input)
 {
     const int numSamples = input.getNumSamples();
@@ -270,30 +285,22 @@ void LooperAudio::recordIntoTracks(const juce::AudioBuffer<float>& input)
 
         const int numChannels = juce::jmin(input.getNumChannels(), track.buffer.getNumChannels());
         
-        // バッファの物理的な限界、またはマスターの長さ
-        // まだマスターが決まっていない場合は、トラックのバッファ最大長をリミットとする
         const int loopLimit = (masterLoopLength > 0) ? masterLoopLength : track.buffer.getNumSamples();
 
-        if (loopLimit == 0) continue; // 安全策
+        if (loopLimit == 0) continue; 
 
-        // 書き込み開始位置の決定
         int currentWritePos;
         if (masterLoopLength > 0)
         {
-            // マスター同期中
             currentWritePos = masterReadPosition % loopLimit;
         }
         else
         {
-            // 最初のトラック録音中 (リニア進行)
-            // track.recordLength を現在のヘッド位置として扱う
             currentWritePos = track.recordLength % loopLimit;
         }
 
-        // --- 🔄 ラップアラウンド対応書き込みループ ---
         int samplesRemaining = numSamples;
 
-        // 【修正】マスター同期録音の場合は、ループ長を超えて録音しないように制限する
         if (masterLoopLength > 0)
         {
             int maxRecordable = masterLoopLength - track.recordLength;
@@ -305,29 +312,23 @@ void LooperAudio::recordIntoTracks(const juce::AudioBuffer<float>& input)
 
         while (samplesRemaining > 0)
         {
-            // バッファ終端までの距離
             const int samplesToEnd = loopLimit - currentWritePos;
             const int samplesToCopy = juce::jmin(samplesRemaining, samplesToEnd);
 
             for (int ch = 0; ch < numChannels; ++ch)
             {
-                // inputOffset を使って入力バッファの正しい位置からコピー
                 track.buffer.copyFrom(ch, currentWritePos, input, ch, inputReadOffset, samplesToCopy);
             }
 
-            // ポインタ更新
             currentWritePos = (currentWritePos + samplesToCopy) % loopLimit;
             inputReadOffset += samplesToCopy;
             samplesRemaining -= samplesToCopy;
             
-            // 録音長を更新
             track.recordLength = juce::jmin(track.recordLength + samplesToCopy, loopLimit);
         }
 
-        // トラックの状態に最終的な位置を保存（必要であれば）
         track.writePosition = currentWritePos;
 
-        // ✅ マスター同期モードの場合、1周録音完了で停止して再生へ
         if (masterLoopLength > 0 && track.recordLength >= masterLoopLength)
         {
             stopRecording(id);
@@ -338,18 +339,15 @@ void LooperAudio::recordIntoTracks(const juce::AudioBuffer<float>& input)
     }
 }
 
-//==============================================================================
-// 再生処理 (ミックス)
-//==============================================================================
 void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
 {
     const int numSamples = output.getNumSamples();
-
+    
+    // 1. Sum all tracks to output
     for (auto& [id, track] : tracks)
     {
         if (!track.isPlaying)
         {
-            // 停止中はレベルを減衰させてゼロにする
             track.currentLevel *= 0.8f;
             if (track.currentLevel < 0.001f) track.currentLevel = 0.0f;
             continue;
@@ -373,8 +371,6 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
 
             for (int ch = 0; ch < numChannels; ++ch)
             {
-                // 出力の現在の位置 (numSamples - remaining は間違いやすいので outputOffset を使用)
-                // ゲインを適用して加算
                 output.addFrom(ch, outputOffset, track.buffer, ch, readPos, samplesToCopy, track.gain);
             }
 
@@ -385,16 +381,9 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
 
         track.readPosition = readPos;
 
-        // 🧮 RMS計算（wrapを考慮）
-        // 計算負荷軽減のため、簡易的にラップアラウンド後の位置周辺で計算
-        // 正確にまたぐ計算が必要な場合は修正が必要だが、UI表示用ならこれで十分
+        // 🧮 RMS計算
         const int rmsWindow = 256;
         int rmsStart = (readPos - rmsWindow + loopLength) % loopLength; 
-        
-        // バッファ終端をまたぐ可能性があるため、安全策として getRMSLevel を2回呼ぶか、
-        // 簡易的に読み出し位置の直前を使う
-        // ここでは単純化のため、現在の読み出し位置の手前 window 分を取得（ラップ考慮なし）で妥協するか、
-        // ちゃんと分割するか。既存コードのロジックを整理して記述：
         
         float rmsValue = 0.0f;
         if (rmsStart + rmsWindow <= loopLength)
@@ -403,26 +392,65 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
         }
         else
         {
-            // またぐ場合
             int part1 = loopLength - rmsStart;
             int part2 = rmsWindow - part1;
             float r1 = track.buffer.getRMSLevel(0, rmsStart, part1);
             float r2 = track.buffer.getRMSLevel(0, 0, part2);
-            rmsValue = (r1 + r2) * 0.5f; // 簡易平均
+            rmsValue = (r1 + r2) * 0.5f; 
         }
         
-        // 🎚 Apply Fader Gain (Post-Fader Metering)
         rmsValue *= track.gain;
-        // Apply decay smoothing: rise immediately, fall slowly
-        constexpr float decayRate = 0.95f;  // Higher = slower decay
+        constexpr float decayRate = 0.95f;
         if (rmsValue > track.currentLevel)
             track.currentLevel = rmsValue;
         else
             track.currentLevel = track.currentLevel * decayRate + rmsValue * (1.0f - decayRate);
+    } // End track loop
+
+    // 2. Apply Master FX Implementation
+    juce::dsp::AudioBlock<float> block(output);
+    juce::dsp::ProcessContextReplacing<float> context(block);
+    
+    // Compressor
+    masterFX.compressor.process(context);
+    
+    // Filter
+    masterFX.filter.process(context);
+    
+    // Delay (Manual Feedback)
+    if (masterFX.delayMix > 0.0f)
+    {
+         auto* left = output.getWritePointer(0);
+         auto* right = output.getWritePointer(1);
+         int numSamplesToProcess = output.getNumSamples();
+         
+         for(int i=0; i<numSamplesToProcess; ++i)
+         {
+            float inL = left[i];
+            float inR = right[i];
+            
+            float wetL = masterFX.delay.popSample(0);
+            float wetR = masterFX.delay.popSample(1);
+            
+            left[i] = inL * (1.0f - masterFX.delayMix) + wetL * masterFX.delayMix;
+            right[i] = inR * (1.0f - masterFX.delayMix) + wetR * masterFX.delayMix;
+            
+            float feedL = inL + wetL * masterFX.delayFeedback;
+            float feedR = inR + wetR * masterFX.delayFeedback;
+            
+            feedL = std::tanh(feedL);
+            feedR = std::tanh(feedR);
+            
+            masterFX.delay.pushSample(0, feedL);
+            masterFX.delay.pushSample(1, feedR);
+         }
     }
+    
+    // Reverb
+    masterFX.reverb.process(context);
 
 
-	// 再生中または録音中のトラックが1つでもあるかチェック
+    // 再生中または録音中のトラックが1つでもあるかチェック
     bool isActive = isAnyPlaying() || isAnyRecording();
 
     // マスターが決まっていて、かつ「誰かが動いている時だけ」時間を進める
@@ -490,10 +518,8 @@ void LooperAudio::stopAllTracks()
     {
         track.isRecording = false;
         track.isPlaying = false;
-		
     }
-	masterReadPosition = 0;
-	//DBG("⏹ LooperAudio::stopAllTracks() → All tracks stopped");
+    masterReadPosition = 0;
 }
 
 int LooperAudio::getCurrentTrackId() const
@@ -544,33 +570,25 @@ void LooperAudio::generateTestClick(int trackId)
     
     auto& track = it->second;
     
-    // 120BPM = 0.5秒/ビート = sampleRate * 0.5 サンプル/ビート
     const int samplesPerBeat = static_cast<int>(sampleRate * 0.5);
     const int numBeats = 4;
     const int totalSamples = samplesPerBeat * numBeats;
     
-    // クリック音のパラメータ
-    const float clickFrequency = 1000.0f;  // 1kHz
-    const int clickDuration = static_cast<int>(sampleRate * 0.02);  // 20ms
+    const float clickFrequency = 1000.0f;  
+    const int clickDuration = static_cast<int>(sampleRate * 0.02); 
     
-    // バッファをクリア
     track.buffer.clear();
     
-    // 4拍のクリックを生成
     for (int beat = 0; beat < numBeats; ++beat)
     {
         int beatStart = beat * samplesPerBeat;
         
         for (int i = 0; i < clickDuration && (beatStart + i) < track.buffer.getNumSamples(); ++i)
         {
-            // エンベロープ（急激なアタック、すぐに減衰）
             float envelope = std::exp(-5.0f * (float)i / (float)clickDuration);
-            
-            // サイン波
             float phase = juce::MathConstants<float>::twoPi * clickFrequency * (float)i / (float)sampleRate;
             float sample = std::sin(phase) * envelope * 0.8f;
             
-            // 両チャンネルに書き込み
             for (int ch = 0; ch < track.buffer.getNumChannels(); ++ch)
             {
                 track.buffer.setSample(ch, beatStart + i, sample);
@@ -578,14 +596,12 @@ void LooperAudio::generateTestClick(int trackId)
         }
     }
     
-    // トラックの状態を設定
     track.recordLength = totalSamples;
     track.lengthInSample = totalSamples;
     track.readPosition = 0;
     track.isPlaying = true;
     track.isRecording = false;
     
-    // マスターループが設定されていない場合は設定
     if (masterLoopLength == 0)
     {
         masterLoopLength = totalSamples;
@@ -595,7 +611,68 @@ void LooperAudio::generateTestClick(int trackId)
     }
     
     DBG("🔊 Test click generated for track " << trackId << " | " << numBeats << " beats @ 120BPM");
-    
-    // リスナーに通知（波形表示のため）
     listeners.call([trackId](Listener& l) { l.onRecordingStopped(trackId); });
+}
+
+// ================= FX Setters (Master) =================
+
+void LooperAudio::setMasterFilterCutoff(float freq)
+{
+    masterFX.filter.setCutoffFrequency(freq);
+}
+
+void LooperAudio::setMasterFilterResonance(float q)
+{
+    masterFX.filter.setResonance(q);
+}
+
+void LooperAudio::setMasterFilterType(int type)
+{
+    if(type == 0) masterFX.filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    else if(type == 1) masterFX.filter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+}
+
+void LooperAudio::setMasterCompressor(float threshold, float ratio)
+{
+    masterFX.compressor.setThreshold(threshold);
+    masterFX.compressor.setRatio(ratio);
+}
+
+void LooperAudio::setMasterDelayMix(float mix, float time)
+{
+    masterFX.delayMix = mix;
+    
+    float maxDelay = sampleRate * 1.0f;
+    float delaySamples = time * maxDelay;
+    if(delaySamples < 1.0f) delaySamples = 1.0f;
+    
+    masterFX.delay.setDelay(delaySamples);
+}
+
+void LooperAudio::setMasterDelayFeedback(float feedback)
+{
+    masterFX.delayFeedback = feedback;
+}
+
+void LooperAudio::setMasterReverbMix(float mix)
+{
+    masterFX.reverbMix = mix;
+    juce::dsp::Reverb::Parameters params = masterFX.reverb.getParameters();
+    params.dryLevel = 1.0f - (mix * 0.5f);
+    params.wetLevel = mix;
+    masterFX.reverb.setParameters(params);
+}
+
+void LooperAudio::setMasterReverbDamping(float damping)
+{
+    juce::dsp::Reverb::Parameters params = masterFX.reverb.getParameters();
+    params.damping = damping;
+    masterFX.reverb.setParameters(params);
+}
+
+void LooperAudio::setMasterReverbRoomSize(float size)
+{
+    juce::dsp::Reverb::Parameters params = masterFX.reverb.getParameters();
+    params.roomSize = size;
+    masterFX.reverb.setParameters(params);
 }

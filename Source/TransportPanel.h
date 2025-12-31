@@ -29,6 +29,7 @@ public:
 	std::function<void()> onSettingsRequested;
 	std::function<void()> onTestClick;  // テストクリック用
 	std::function<void()> onToggleTracks; // トラック表示切り替え用
+	std::function<void()> onShowFX;       // FX画面表示切り替え用
 	
 	// Visual Mode Button Accessor
 	void setVisualModeButtonText(const juce::String& text);
@@ -56,6 +57,7 @@ private:
 	juce::TextButton settingButton {juce::String::fromUTF8("\xE2\x9A\x99")};  // ⚙
 	juce::TextButton testButton {"TEST"};  // テスト用
 	juce::TextButton visualModeButton {"VISUAL MODE"}; // トラック表示切替用
+	juce::TextButton fxButton {"FX"};  // FX画面切り替え用
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransportPanel);
 };

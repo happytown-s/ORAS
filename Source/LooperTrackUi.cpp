@@ -79,6 +79,12 @@ void LooperTrackUi::paint(juce::Graphics& g)
         g.setColour(ThemeColours::ElectricBlue.withAlpha(alpha));
         g.fillRoundedRectangle(buttonArea, 8.0f);
         drawGlowingBorder(g, ThemeColours::ElectricBlue, buttonArea);
+    } else if (state == TrackState::Stopped) {
+        // 🎵 録音済みトラック（再生停止中）: 緑の薄いインジケーター
+        g.setColour(ThemeColours::PlayingGreen.withAlpha(0.15f));
+        g.fillRoundedRectangle(buttonArea, 8.0f);
+        g.setColour(ThemeColours::PlayingGreen.withAlpha(0.5f));
+        g.drawRoundedRectangle(buttonArea, 8.0f, 1.5f);
     }
 
 	// Track Number
@@ -105,10 +111,23 @@ void LooperTrackUi::paint(juce::Graphics& g)
 										 meterArea.getWidth(), 
 										 levelHeight);
 		
-        // Futuristic Gradient (Vertical: Cyan -> Blue -> Magenta)
-        juce::ColourGradient gradient(ThemeColours::NeonCyan, meterArea.getX(), meterArea.getBottom(),
-                                      ThemeColours::NeonMagenta, meterArea.getX(), meterArea.getY(), false);
-        gradient.addColour(0.5, ThemeColours::ElectricBlue);
+        // トラックIDに基づいた色（ビジュアライザと同じ8色）
+        juce::Colour trackColour;
+        switch ((trackId - 1) % 8) {
+            case 0: trackColour = ThemeColours::NeonCyan; break;
+            case 1: trackColour = ThemeColours::NeonMagenta; break;
+            case 2: trackColour = juce::Colour::fromRGB(255, 165, 0); break;   // オレンジ
+            case 3: trackColour = juce::Colour::fromRGB(57, 255, 20); break;   // グリーン
+            case 4: trackColour = juce::Colour::fromRGB(255, 255, 0); break;   // イエロー
+            case 5: trackColour = juce::Colour::fromRGB(77, 77, 255); break;   // ブルー
+            case 6: trackColour = juce::Colour::fromRGB(191, 0, 255); break;   // パープル
+            case 7: trackColour = juce::Colour::fromRGB(255, 20, 147); break;  // ピンク
+            default: trackColour = ThemeColours::NeonCyan; break;
+        }
+        
+        // グラデーション（トラック色ベース）
+        juce::ColourGradient gradient(trackColour, meterArea.getX(), meterArea.getBottom(),
+                                      trackColour.darker(0.5f), meterArea.getX(), meterArea.getY(), false);
         
 		g.setGradientFill(gradient);
 		g.fillRoundedRectangle(levelRect, 3.0f);

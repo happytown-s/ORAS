@@ -25,9 +25,11 @@ public:
 							bool isButtonDown) override
 	{
 		auto bounds = button.getLocalBounds().toFloat();
-		float diameter = bounds.getWidth();
+		// グロー用のマージンを確保（13px = さらに小さく）
+		float glowMargin = 13.0f;
+		float diameter = bounds.getWidth() - glowMargin;
 		float x = bounds.getCentreX() - diameter * 0.5f;
-		float y = bounds.getY() + 2.0f;
+		float y = bounds.getCentreY() - diameter * 0.5f;
 		juce::Rectangle<float> circleBounds(x, y, diameter, diameter);
 		
 		// --- Glassmorphism Background ---
@@ -106,12 +108,13 @@ public:
 	void drawButtonText(juce::Graphics& g, juce::TextButton& button, bool isMouseOver, bool isButtonDown) override
 	{
 		auto bounds = button.getLocalBounds().toFloat();
-		float diameter = bounds.getWidth();
-		float circleY = bounds.getY() + 2.0f;
+		// グロー用マージンを考慮した直径
+		float glowMargin = 13.0f;
+		float diameter = bounds.getWidth() - glowMargin;
 		
 		auto iconSize = diameter * 0.5f;
 		auto centerX = bounds.getCentreX();
-		auto centerY = circleY + diameter * 0.5f;
+		auto centerY = bounds.getCentreY();
 		
 		auto text = button.getButtonText();
         juce::String svgText;

@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_dsp/juce_dsp.h>
 #include "TriggerEvent.h"
 #include <map>
 #include <optional>
@@ -73,6 +74,28 @@ class LooperAudio
 private:
 
 	//トラック音声関連のデータ
+	//トラック音声関連のデータ
+    // FX Chain Definition
+    struct FXChain
+    {
+        // Modules
+        juce::dsp::Compressor<float> compressor;
+        juce::dsp::StateVariableTPTFilter<float> filter;
+        juce::dsp::DelayLine<float> delay { 96000 }; 
+        juce::dsp::Reverb reverb;
+        
+        // Parameters
+        float filterCutoff = 20000.0f;
+        float filterRes = 0.707f;
+        int   filterType = 0; // 0=LPF, 1=HPF
+
+        float reverbMix = 0.0f;
+        
+        float delayMix = 0.0f;
+        float delayFeedback = 0.0f;
+        float delayTime = 0.5f; // sec
+    };
+
 	struct TrackData
 	{
 		juce::AudioBuffer<float> buffer;
@@ -102,6 +125,20 @@ public:
 
 	float getTrackRMS(int trackId) const;
 	void setTrackGain(int trackId, float gain);
+
+    // Global (Master) FX Setters
+    void setMasterFilterCutoff(float freq);
+    void setMasterFilterResonance(float q);
+    void setMasterFilterType(int type); // 0=LPF, 1=HPF
+
+    void setMasterReverbMix(float mix); // 0.0 - 1.0
+    void setMasterReverbDamping(float damping);
+    void setMasterReverbRoomSize(float size);
+
+    void setMasterDelayMix(float mix, float time); // mix 0-1, time 0-1 sec
+    void setMasterDelayFeedback(float feedback); // 0-1
+
+    void setMasterCompressor(float threshold, float ratio); 
 
 	// ビジュアライザ用
 	const juce::AudioBuffer<float>* getTrackBuffer(int trackId) const
@@ -173,5 +210,6 @@ private:
 	void recordIntoTracks(const juce::AudioBuffer<float>& input);
 	void mixTracksToOutput(juce::AudioBuffer<float>& output);
 
+    FXChain masterFX;
 };
 

@@ -5,7 +5,8 @@
 MainComponent::MainComponent()
 	: sharedTrigger(inputTap.getTriggerEvent()),
 		looper(44100, 44100 * 10),
-		transportPanel(looper)
+		transportPanel(looper),
+        fxPanel(looper)
 {
 	// 設定ファイルを初期化
 	juce::PropertiesFile::Options options;
@@ -43,6 +44,7 @@ MainComponent::MainComponent()
 	// ボタン類設定
 	addAndMakeVisible(visualizer);
 	addAndMakeVisible(transportPanel);
+	addChildComponent(fxPanel); // Initially hidden
 
 	transportPanel.onAction = [this](const juce::String& action)
 	{
@@ -176,11 +178,61 @@ MainComponent::MainComponent()
 			transportPanel.setVisualModeButtonText("SHOW TRACKS"); // Click to show tracks
 			
 		// Visibility Update
-		for (auto& t : trackUIs)
-			t->setVisible(areTracksVisible);
+		if (!isFXMode) {
+			for (auto& t : trackUIs)
+				t->setVisible(areTracksVisible);
+		}
 			
 		resized();
 		repaint();
+	};
+
+	transportPanel.onShowFX = [this]()
+	{
+		// Toggle FX Mode
+		bool targetState = !isFXMode;
+		
+		if (targetState) // Trying to enable FX Mode
+		{
+			// Find selected track
+			int selectedId = -1;
+			for(auto& t : trackUIs) {
+				if(t->getIsSelected()) {
+					selectedId = t->getTrackId();
+					break;
+				}
+			}
+			
+			if (selectedId != -1) {
+				isFXMode = true;
+				fxPanel.setTargetTrackId(selectedId);
+				fxPanel.setVisible(true);
+				
+				// Hide tracks
+				for(auto& t : trackUIs) t->setVisible(false);
+				
+				DBG("🪄 Entered FX Mode for Track " << selectedId);
+			} else {
+				// No track selected: Maybe flash the button or show a warning?
+				DBG("⚠️ Cannot enter FX Mode: No track selected");
+				// Force disable
+				isFXMode = false;
+			}
+		}
+		else // Disable FX Mode
+		{
+			isFXMode = false;
+			fxPanel.setVisible(false);
+			
+			// Restore track visibility based on areTracksVisible
+			if (areTracksVisible) {
+				for(auto& t : trackUIs) t->setVisible(true);
+			}
+			
+			DBG("🔙 Exited FX Mode");
+		}
+		
+		resized();
 	};
 
 	setSize(760, 800);
@@ -474,18 +526,26 @@ void MainComponent::resized()
         auto transportArea = area.removeFromTop(70);
         transportPanel.setBounds(transportArea);
         
-        // 🎚 トラック群
-        int x = 0, y = 0;
-        for (int i = 0; i < trackUIs.size(); i++)
+        // 🎚 トラック群 または FXパネル
+        if (isFXMode)
         {
-            int row = i / tracksPerRow;
-            int col = i % tracksPerRow;
-            x = col * (trackWidth + spacing);
-            y = row * (trackHeight + spacing);
+            // Show FX Panel instead of tracks
+            fxPanel.setBounds(area);
+        }
+        else
+        {
+            int x = 0, y = 0;
+            for (int i = 0; i < trackUIs.size(); i++)
+            {
+                int row = i / tracksPerRow;
+                int col = i % tracksPerRow;
+                x = col * (trackWidth + spacing);
+                y = row * (trackHeight + spacing);
 
-            trackUIs[i]->setBounds(area.getX() + x + spacing,
-                                   area.getY() + y + spacing,
-                                   trackWidth, trackHeight);
+                trackUIs[i]->setBounds(area.getX() + x + spacing,
+                                    area.getY() + y + spacing,
+                                    trackWidth, trackHeight);
+            }
         }
     }
     else
@@ -521,9 +581,29 @@ void MainComponent::trackClicked(LooperTrackUi* clickedTrack)
 		t->repaint();
 
 	if (clickedTrack->getIsSelected())
+	{
 		DBG("🎯 Selected track ID: " << clickedTrack->getTrackId());
+		
+		// If FX mode is active, switch FX panel to this new track
+		if (isFXMode) {
+			fxPanel.setTargetTrackId(clickedTrack->getTrackId());
+		}
+	}
 	else
+	{
 		DBG("🚫 All tracks deselected");
+		// If deselecting everything, maybe exit FX mode? 
+		// For now, let's keep it simple: if you deselect, you might want to close FX mode manually or it stays open but "No track selected"
+		// Better UX: If in FX mode and all tracks deselected -> Exit FX mode
+		if (isFXMode) {
+			isFXMode = false;
+			fxPanel.setVisible(false);
+			if (areTracksVisible) {
+				for(auto& t : trackUIs) t->setVisible(true);
+			}
+			resized();
+		}
+	}
 }
 
 

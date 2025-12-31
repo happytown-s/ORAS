@@ -33,6 +33,8 @@ set(SOURCE_FILES
     Source/InputManager.cpp
     Source/TransportPanel.cpp
     Source/LooperTrackUi.cpp
+    Source/FXPanel.cpp
+    Source/PlanetKnobLookAndFeel.cpp
 )
 
 set(HEADER_FILES
@@ -44,6 +46,8 @@ set(HEADER_FILES
     Source/LooperAudio.h
     Source/LooperTrackUi.h
     Source/TransportPanel.h
+    Source/FXPanel.h
+    Source/PlanetKnobLookAndFeel.h
     Source/TriggerEvent.h
     Source/SmartGate.h
     Source/MainComponent.h

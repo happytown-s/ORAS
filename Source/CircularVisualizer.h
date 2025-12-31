@@ -84,9 +84,9 @@ public:
         // ポイント間の正確なサンプル数ステップ（浮動小数点）
         // ★ numSamples (実際読み取る範囲) を基準にする
         double sampleStep = (double)numSamples / (double)points;
-        // マニュアルオフセット: なし（JUCEは時計回り座標なので0=3時、-pi=9時）
-        // 波形は0度(3時)から時計回りで描画し、表示時に回転させる
-        double manualOffset = 0.0;
+        // マニュアルオフセット: -π/2 で12時開始
+        // cos/sinでは-π/2 = (0, -1) = 12時
+        double manualOffset = -juce::MathConstants<double>::halfPi;
 
         for (int i = 0; i <= points; ++i)
         {
@@ -226,8 +226,12 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
-        auto centre = bounds.getCentre();
-        auto radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.35f;
+        
+        // ★ 正方形領域を強制して楕円歪みを防止
+        float side = juce::jmin(bounds.getWidth(), bounds.getHeight());
+        auto squareArea = bounds.withSizeKeepingCentre(side, side);
+        auto centre = squareArea.getCentre();
+        auto radius = side * 0.35f;
 
         // --- Visualizer Elements (Overlay only) ---
         
@@ -313,8 +317,9 @@ public:
         // --- Draw Playhead ---
         if (currentPlayHeadPos >= 0.0f)
         {
-            // オフセットなし - 波形と同じ座標系
-            float angle = currentPlayHeadPos * juce::MathConstants<float>::twoPi;
+            // ★ プレイヘッドはオフセットなし（以前の状態に戻す）
+            float manualOffset = 0.0f;
+            float angle = (currentPlayHeadPos * juce::MathConstants<float>::twoPi) + manualOffset;
             
             // プレイヘッドライン (レーダーのように中心から外へ)
             auto innerPos = centre.getPointOnCircumference(radius * 0.1f, angle);
@@ -323,7 +328,6 @@ public:
             g.setGradientFill(juce::ColourGradient(juce::Colours::white.withAlpha(0.0f), innerPos.x, innerPos.y,
                                                    juce::Colours::white.withAlpha(0.8f), outerPos.x, outerPos.y, false));
             g.drawLine(innerPos.x, innerPos.y, outerPos.x, outerPos.y, 2.0f);
-
 
             auto headPos = centre.getPointOnCircumference(radius, angle);
             g.setColour(juce::Colours::white);
