@@ -248,15 +248,24 @@ public:
         g.drawEllipse(bounds.withSizeKeepingCentre(radius * 2.1f, radius * 2.1f), 1.0f);
 
         // --- Draw Concentric Waveforms with Glow ---
+        // ズームスケールを適用: ズームインすると内側のレイヤーが大きく表示される
         for (int i = 0; i < (int)waveformPaths.size(); ++i)
         {
             const auto& wp = waveformPaths[i];
             
-            float scaleLayer = 1.0f - (float)i * 0.18f;
+            // 元の計算方式を維持し、ズームで拡大
+            float layerOffset = (float)i * 0.18f;
+            float scaleLayer = 1.0f - layerOffset;
             if (scaleLayer <= 0.1f) continue;
             
-            float finalScale = radius * scaleLayer;
-            float baseAlpha = 0.9f - (float)i * 0.12f; 
+            // ズーム適用: zoomScale=1.0で元通り、>1.0で拡大
+            float zoomedScale = scaleLayer * zoomScale;
+            if (zoomedScale > 3.0f) continue;  // 大きすぎるものはスキップ
+            
+            float finalScale = radius * zoomedScale;
+            
+            // アルファ値（元の計算方式）
+            float baseAlpha = 0.9f - (float)i * 0.12f;
             
             auto transform = juce::AffineTransform::scale(finalScale, finalScale)
                                                    .translated(centre.x, centre.y);
@@ -439,6 +448,10 @@ public:
     void timerCallback() override
     {
         updateParticles();
+        
+        // スムーズなズームアニメーション
+        zoomScale += (targetZoomScale - zoomScale) * 0.15f;
+        
         repaint(); // Always repaint for animations
         
         if (nextFFTBlockReady)
@@ -469,6 +482,47 @@ private:
     std::vector<LinearWaveformData> linearWaveforms;
     
     float currentPlayHeadPos = -1.0f;
+    
+    // ズーム機能用
+    float zoomScale = 1.0f;           // 1.0 = 通常、>1.0 = ズームイン
+    float targetZoomScale = 1.0f;     // スムーズなアニメーション用
+    bool isDragging = false;
+    juce::Point<float> lastDragPos;
+    
+    void mouseDrag(const juce::MouseEvent& e) override
+    {
+        if (!isDragging)
+        {
+            isDragging = true;
+            lastDragPos = e.position;
+            return;
+        }
+        
+        // 垂直ドラッグでズーム制御（上にドラッグ = ズームイン）
+        float deltaY = lastDragPos.y - e.position.y;
+        targetZoomScale += deltaY * 0.01f;
+        targetZoomScale = juce::jlimit(1.0f, 5.0f, targetZoomScale);
+        
+        lastDragPos = e.position;
+    }
+    
+    void mouseUp(const juce::MouseEvent&) override
+    {
+        isDragging = false;
+    }
+    
+    void mouseDoubleClick(const juce::MouseEvent&) override
+    {
+        // ダブルクリックでリセット
+        targetZoomScale = 1.0f;
+    }
+    
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& wheel) override
+    {
+        // マウスホイールでもズーム
+        targetZoomScale += wheel.deltaY * 0.5f;
+        targetZoomScale = juce::jlimit(1.0f, 5.0f, targetZoomScale);
+    }
 
     void drawRotatingRing(juce::Graphics& g, juce::Point<float> centre, float radius, float rotation, float arcLength)
     {
