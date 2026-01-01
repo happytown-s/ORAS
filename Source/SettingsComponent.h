@@ -300,12 +300,12 @@ public:
         
         // Device Selector (Top)
         if (audioSelector)
-            audioSelector->setBounds(area.removeFromTop(250));
+            audioSelector->setBounds(area.removeFromTop(200));
             
         area.removeFromTop(10);
         
         // Global Controls (Middle)
-        auto globalArea = area.removeFromTop(150);
+        auto globalArea = area.removeFromTop(120);
         globalControlsHeader.setBounds(globalArea.removeFromTop(30));
         
         auto row1 = globalArea.removeFromTop(40);
