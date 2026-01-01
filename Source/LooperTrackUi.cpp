@@ -97,9 +97,38 @@ void LooperTrackUi::paint(juce::Graphics& g)
 	// メーターエリア定義 (スライダーの左側)
 	juce::Rectangle<float> meterArea = bottomArea.removeFromLeft(width * 0.4f).reduced(4.0f, 0.0f); // 左右のみreduce
 	
+	// トラックIDに基づいた色（ビジュアライザと同じ8色）
+	juce::Colour trackColour;
+	switch ((trackId - 1) % 8) {
+		case 0: trackColour = ThemeColours::NeonCyan; break;
+		case 1: trackColour = ThemeColours::NeonMagenta; break;
+		case 2: trackColour = juce::Colour::fromRGB(255, 165, 0); break;   // オレンジ
+		case 3: trackColour = juce::Colour::fromRGB(57, 255, 20); break;   // グリーン
+		case 4: trackColour = juce::Colour::fromRGB(255, 255, 0); break;   // イエロー
+		case 5: trackColour = juce::Colour::fromRGB(77, 77, 255); break;   // ブルー
+		case 6: trackColour = juce::Colour::fromRGB(191, 0, 255); break;   // パープル
+		case 7: trackColour = juce::Colour::fromRGB(255, 20, 147); break;  // ピンク
+		default: trackColour = ThemeColours::NeonCyan; break;
+	}
+	
+	// メーターエリア周囲のグロー効果（常に表示）
+	float baseGlowAlpha = 0.15f;
+	float glowIntensity = currentRmsLevel > 0.0f ? juce::jlimit(0.2f, 1.0f, currentRmsLevel * 2.5f + 0.2f) : 0.2f;
+	for (int i = 4; i >= 1; --i)
+	{
+		float expand = (float)i * 2.5f;
+		float alpha = baseGlowAlpha * glowIntensity * (1.0f - (float)i / 5.0f);
+		g.setColour(trackColour.withAlpha(alpha));
+		g.fillRoundedRectangle(meterArea.expanded(expand), 3.0f + expand * 0.5f);
+	}
+	
 	// 背景
-	g.setColour(juce::Colours::black.withAlpha(0.2f));
+	g.setColour(juce::Colours::black.withAlpha(0.4f));
 	g.fillRoundedRectangle(meterArea, 3.0f);
+	
+	// メーターエリアの枠線（グロー風）
+	g.setColour(trackColour.withAlpha(0.4f));
+	g.drawRoundedRectangle(meterArea, 3.0f, 1.0f);
 	
 	// レベルバー
 	if (currentRmsLevel > 0.0f)
@@ -110,20 +139,6 @@ void LooperTrackUi::paint(juce::Graphics& g)
 										 meterArea.getBottom() - levelHeight, 
 										 meterArea.getWidth(), 
 										 levelHeight);
-		
-        // トラックIDに基づいた色（ビジュアライザと同じ8色）
-        juce::Colour trackColour;
-        switch ((trackId - 1) % 8) {
-            case 0: trackColour = ThemeColours::NeonCyan; break;
-            case 1: trackColour = ThemeColours::NeonMagenta; break;
-            case 2: trackColour = juce::Colour::fromRGB(255, 165, 0); break;   // オレンジ
-            case 3: trackColour = juce::Colour::fromRGB(57, 255, 20); break;   // グリーン
-            case 4: trackColour = juce::Colour::fromRGB(255, 255, 0); break;   // イエロー
-            case 5: trackColour = juce::Colour::fromRGB(77, 77, 255); break;   // ブルー
-            case 6: trackColour = juce::Colour::fromRGB(191, 0, 255); break;   // パープル
-            case 7: trackColour = juce::Colour::fromRGB(255, 20, 147); break;  // ピンク
-            default: trackColour = ThemeColours::NeonCyan; break;
-        }
         
         // グラデーション（トラック色ベース）
         juce::ColourGradient gradient(trackColour, meterArea.getX(), meterArea.getBottom(),
@@ -132,20 +147,31 @@ void LooperTrackUi::paint(juce::Graphics& g)
 		g.setGradientFill(gradient);
 		g.fillRoundedRectangle(levelRect, 3.0f);
         
+        // 内側のハイライト（光沢感）
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
+        auto highlightRect = levelRect.reduced(2.0f, 0.0f).withHeight(levelRect.getHeight() * 0.3f);
+        highlightRect.setY(levelRect.getY());
+        g.fillRoundedRectangle(highlightRect, 2.0f);
+        
         // Digital Grid Lines
-        g.setColour(juce::Colours::black.withAlpha(0.3f));
+        g.setColour(juce::Colours::black.withAlpha(0.25f));
         for (int i = 1; i < 10; ++i) 
         {
             float y = meterArea.getBottom() - (meterArea.getHeight() * (i / 10.0f));
-            if (y > levelRect.getY()) // Only draw inside the bar or over it? 
-                // Draw over the whole meter area to show scale?
-                // Visual consistency: Draw over the lit part to segment it.
+            if (y > levelRect.getY())
                 g.drawLine(meterArea.getX(), y, meterArea.getRight(), y, 1.0f);
         }
         
-        // Peak Indicator
+        // Peak Indicator with glow
         if (currentRmsLevel * 2.5f >= 1.0f)
         {
+             // グロー効果（赤）
+             for (int i = 3; i >= 1; --i)
+             {
+                 float expand = (float)i * 1.5f;
+                 g.setColour(ThemeColours::RecordingRed.withAlpha(0.15f / (float)i));
+                 g.drawRoundedRectangle(meterArea.expanded(expand), 3.0f + expand, 2.0f);
+             }
              g.setColour(ThemeColours::RecordingRed);
              g.drawRoundedRectangle(meterArea, 3.0f, 2.0f);
         }

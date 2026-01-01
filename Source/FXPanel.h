@@ -13,6 +13,7 @@
 #include "ThemeColours.h"
 #include "PlanetKnobLookAndFeel.h"
 #include "LooperAudio.h"
+#include "FXSlotButtonLookAndFeel.h"
 
 // =====================================================
 // 🎛 FXPanel クラス宣言
@@ -38,6 +39,9 @@ public:
     ~FXPanel() override;
 
     void setTargetTrackId(int trackId);
+    
+    // トラック選択時のコールバック
+    std::function<void(int)> onTrackSelected;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -50,10 +54,15 @@ private:
     juce::Label titleLabel;
 
     PlanetKnobLookAndFeel planetLnF;
+    FXSlotButtonLookAndFeel slotLnF;
 
     // Slots
     EffectSlot slots[4];
     int selectedSlotIndex = 0;
+    juce::TextButton slotButtons[4];  // エフェクトスロットボタン
+    
+    // トラック選択ボタン（8トラック）
+    juce::TextButton trackButtons[8];
     
     // Sliders (All exist, visibility toggled)
     // Filter
@@ -64,8 +73,10 @@ private:
     juce::TextButton filterTypeButton { "LPF" }; // Toggle LPF/HPF
     
     // Compressor
-    juce::Slider compSlider;
-    juce::Label compLabel;
+    juce::Slider compThreshSlider;  // Threshold
+    juce::Label compThreshLabel;
+    juce::Slider compRatioSlider;   // Ratio
+    juce::Label compRatioLabel;
     
     // Delay
     juce::Slider delaySlider; // Time

@@ -18,6 +18,32 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     titleLabel.setColour(juce::Label::textColourId, ThemeColours::NeonCyan);
     titleLabel.setText("Track FX Rack", juce::dontSendNotification);
 
+    // スロットボタンの初期化
+    for (int i = 0; i < 4; ++i)
+    {
+        slotButtons[i].setButtonText("Empty");
+        slotButtons[i].setClickingTogglesState(true);
+        slotButtons[i].setLookAndFeel(&slotLnF);
+        slotButtons[i].setRadioGroupId(1);  // ラジオボタングループ（1つだけ選択可能）
+        slotButtons[i].onClick = [this, i]() {
+            selectedSlotIndex = i;
+            // 他のスロットボタンの選択状態をクリア
+            for (int j = 0; j < 4; ++j)
+                slotButtons[j].setToggleState(j == i, juce::dontSendNotification);
+            
+            // エフェクトがNoneならメニューを表示
+            if (slots[i].type == EffectType::None)
+                showEffectMenu(i);
+            
+            updateSliderVisibility();
+            repaint();
+        };
+        addAndMakeVisible(slotButtons[i]);
+    }
+    slotButtons[0].setToggleState(true, juce::dontSendNotification);  // 最初のスロットを選択
+    
+    // トラック選択ボタンは削除（MainComponentのトラックボタンを使用）
+
     // --- FILTER ---
     setupSlider(filterSlider, filterLabel, "CUTOFF", "IceBlue");
     filterSlider.setRange(20.0, 20000.0, 1.0);
@@ -45,14 +71,22 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     };
 
     // --- COMP ---
-    setupSlider(compSlider, compLabel, "AMOUNT", "MagmaRed");
-    compSlider.setRange(0.0, 1.0, 0.01);
-    compSlider.setValue(0.0);
-    compSlider.onValueChange = [this]() {
-        float amt = (float)compSlider.getValue();
-        float thresh = -40.0f * amt;
-        float ratio = 1.0f + (7.0f * amt);
-        looper.setTrackCompressor(currentTrackId, thresh, ratio);
+    setupSlider(compThreshSlider, compThreshLabel, "THRESH", "MagmaRed");
+    compThreshSlider.setRange(-60.0, 0.0, 1.0);
+    compThreshSlider.setValue(-20.0);
+    compThreshSlider.onValueChange = [this]() {
+        looper.setTrackCompressor(currentTrackId, 
+                                   (float)compThreshSlider.getValue(), 
+                                   (float)compRatioSlider.getValue());
+    };
+    
+    setupSlider(compRatioSlider, compRatioLabel, "RATIO", "MagmaRed");
+    compRatioSlider.setRange(1.0, 20.0, 0.5);
+    compRatioSlider.setValue(4.0);
+    compRatioSlider.onValueChange = [this]() {
+        looper.setTrackCompressor(currentTrackId, 
+                                   (float)compThreshSlider.getValue(), 
+                                   (float)compRatioSlider.getValue());
     };
 
     // --- DELAY ---
@@ -132,9 +166,18 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
 
 FXPanel::~FXPanel()
 {
+    // スロットボタンのLookAndFeelをクリア
+    for (int i = 0; i < 4; ++i)
+        slotButtons[i].setLookAndFeel(nullptr);
+    
+    // トラックボタンのLookAndFeelをクリア
+    for (int i = 0; i < 8; ++i)
+        trackButtons[i].setLookAndFeel(nullptr);
+    
     filterSlider.setLookAndFeel(nullptr);
     filterResSlider.setLookAndFeel(nullptr);
-    compSlider.setLookAndFeel(nullptr);
+    compThreshSlider.setLookAndFeel(nullptr);
+    compRatioSlider.setLookAndFeel(nullptr);
     delaySlider.setLookAndFeel(nullptr);
     delayFeedbackSlider.setLookAndFeel(nullptr);
     delayMixSlider.setLookAndFeel(nullptr);
@@ -148,22 +191,34 @@ void FXPanel::setupSlider(juce::Slider& slider, juce::Label& label, const juce::
 {
     addChildComponent(slider);
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
     slider.setLookAndFeel(&planetLnF);
     slider.getProperties().set("PlanetStyle", style);
+    
+    // 整数表示に設定
+    slider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(std::round(value)));
+    };
+    slider.valueFromTextFunction = [](const juce::String& text) {
+        return text.getDoubleValue();
+    };
+    slider.setNumDecimalPlacesToDisplay(0);
 
     addChildComponent(label);
     label.setText(name, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
     label.setColour(juce::Label::textColourId, ThemeColours::Silver);
-    label.setFont(juce::FontOptions(14.0f));
+    label.setFont(juce::FontOptions(12.0f));
 }
 
 void FXPanel::setTargetTrackId(int trackId)
 {
     currentTrackId = trackId;
-    // titleLabel.setText("Track " + juce::String(trackId) + " FX", juce::dontSendNotification);
-    // No longer updating title per track
+    
+    // 対応するトラックボタンを選択状態にする
+    for (int i = 0; i < 8; ++i)
+        trackButtons[i].setToggleState((i + 1) == trackId, juce::dontSendNotification);
+    
     repaint();
 }
 
@@ -175,7 +230,8 @@ void FXPanel::updateSliderVisibility()
     hide(filterResSlider); hide(filterResLabel);
     hide(filterTypeButton);
     
-    hide(compSlider); hide(compLabel);
+    hide(compThreshSlider); hide(compThreshLabel);
+    hide(compRatioSlider); hide(compRatioLabel);
     
     hide(delaySlider); hide(delayLabel);
     hide(delayFeedbackSlider); hide(delayFeedbackLabel);
@@ -200,7 +256,8 @@ void FXPanel::updateSliderVisibility()
             filterTypeButton.setVisible(true);
             break;
         case EffectType::Compressor:
-            compSlider.setVisible(true); compLabel.setVisible(true);
+            compThreshSlider.setVisible(true); compThreshLabel.setVisible(true);
+            compRatioSlider.setVisible(true); compRatioLabel.setVisible(true);
             break;
         case EffectType::Delay:
             delaySlider.setVisible(true); delayLabel.setVisible(true);
@@ -237,7 +294,7 @@ void FXPanel::paint(juce::Graphics& g)
     
     // Layout Calculation
     auto fullArea = getLocalBounds().reduced(10);
-    if (fullArea.getWidth() <= 10 || fullArea.getHeight() <= 40) return; // Prevent negative sizes
+    if (fullArea.getWidth() <= 10 || fullArea.getHeight() <= 40) return;
 
     fullArea.removeFromTop(40); // Title
     
@@ -249,53 +306,12 @@ void FXPanel::paint(juce::Graphics& g)
     g.setColour(ThemeColours::Silver.withAlpha(0.3f));
     g.drawVerticalLine(leftCol.getRight() + 5, (float)fullArea.getY(), (float)fullArea.getBottom());
     
-    // Draw Slots in Left Column
-    int slotHeight = 60;
-    int slotSpacing = 10;
-    
-    for(int i=0; i<4; ++i)
-    {
-        auto slotRect = leftCol.removeFromTop(slotHeight);
-        
-        // Ensure valid rectangle for rounded rect
-        if (slotRect.getWidth() < 4) continue;
-        auto reducedRect = slotRect.reduced(2, 0);
-
-        leftCol.removeFromTop(slotSpacing);
-        
-        bool isSelected = (i == selectedSlotIndex);
-        
-        // Slot Box
-        g.setColour(isSelected ? ThemeColours::NeonMagenta.withAlpha(0.3f) : juce::Colours::darkgrey.withAlpha(0.3f));
-        g.fillRoundedRectangle(reducedRect.toFloat(), 5.0f);
-        
-        g.setColour(isSelected ? ThemeColours::NeonMagenta : ThemeColours::Silver.withAlpha(0.5f));
-        g.drawRoundedRectangle(reducedRect.toFloat(), 5.0f, isSelected ? 2.0f : 1.0f);
-        
-        // Text
-        juce::String typeStr = "";
-        EffectSlot& slot = slots[i];
-        
-        switch(slot.type) {
-            case EffectType::Filter: typeStr = "Filter"; break;
-            case EffectType::Compressor: typeStr = "Comp"; break;
-            case EffectType::Delay: typeStr = "Delay"; break;
-            case EffectType::Reverb: typeStr = "Reverb"; break;
-            case EffectType::BeatRepeat: typeStr = "Repeat"; break;
-            default: typeStr = "Empty"; break;
-        }
-        
-        g.setColour(juce::Colours::white);
-        // g.setFont(juce::Font(16.0f)); // Deprecated
-        g.setFont(juce::FontOptions(16.0f));
-        g.drawText(typeStr, slotRect, juce::Justification::centred, true);
-    }
+    // スロットボタンはコンポーネントとして描画されるので、ここでは何もしない
     
     // Hint
     if(slots[selectedSlotIndex].type == EffectType::None)
     {
         g.setColour(juce::Colours::grey);
-        // g.setFont(18.0f); // Deprecated implicit float
         g.setFont(juce::FontOptions(18.0f));
         g.drawText("No Effect Selected\nClick slot to assign", rightArea, juce::Justification::centred, true);
     }
@@ -304,20 +320,37 @@ void FXPanel::paint(juce::Graphics& g)
 void FXPanel::resized()
 {
     auto area = getLocalBounds();
-    titleLabel.setBounds(area.removeFromTop(40));
+    titleLabel.setBounds(area.removeFromTop(30));  // タイトル高さを縮小
     
-    area.reduce(10, 10);
-    int dividerX = area.getX() + (area.getWidth() * 0.25f);
+    area.reduce(10, 5);  // 上下余白を縮小
+    
+    // 左カラム（スロットボタンのみ）
+    auto leftCol = area.removeFromLeft(static_cast<int>(area.getWidth() * 0.20f));
+    int dividerX = leftCol.getRight();
+    
+    // エフェクトスロットボタンの配置
+    int slotHeight = 45;  // 高さを縮小
+    int slotSpacing = 4;
+    
+    for (int i = 0; i < 4; ++i)
+    {
+        auto slotRect = leftCol.removeFromTop(slotHeight);
+        slotButtons[i].setBounds(slotRect.reduced(2, 0));
+        leftCol.removeFromTop(slotSpacing);
+    }
+    
+    // トラック選択ボタンは削除済み
     
     auto rightArea = area;
     rightArea.setLeft(dividerX + 20); // Add margin
     
-    // Uniform Knob Layout
-    int knobSize = 110; // Standard size for all
-    int labelHeight = 20;
-    int spacing = 30;
-    int startX = rightArea.getCentreX(); // We will center the group based on count
-    int startY = rightArea.getCentreY() - (knobSize / 2);
+    // Uniform Knob Layout - ノブを少し下に配置
+    int knobSize = 90;  // テキストボックス分少し縮小
+    int textBoxHeight = 20;  // テキストボックスの高さ
+    int labelHeight = 16;
+    int spacing = 20;
+    int startX = rightArea.getCentreX();
+    int startY = rightArea.getY() + 15;
 
     // Helper to place a list of sliders centered
     auto placeControls = [&](std::vector<std::pair<juce::Slider*, juce::Label*>> controls, juce::Component* extra = nullptr) 
@@ -330,8 +363,8 @@ void FXPanel::resized()
             auto* slider = p.first;
             auto* label = p.second;
             
-            slider->setBounds(currentX, startY, knobSize, knobSize);
-            label->setBounds(currentX, startY + knobSize + 5, knobSize, labelHeight);
+            slider->setBounds(currentX, startY, knobSize, knobSize + textBoxHeight);
+            label->setBounds(currentX, startY + knobSize + textBoxHeight + 2, knobSize, labelHeight);
             
             currentX += knobSize + spacing;
         }
@@ -339,8 +372,8 @@ void FXPanel::resized()
         if (extra)
         {
             // Place extra component (like button) below the middle or first knob
-            int extraH = 40;
-            extra->setBounds(rightArea.getCentreX() - 40, startY + knobSize + labelHeight + 20, 80, extraH);
+            int extraH = 35;
+            extra->setBounds(rightArea.getCentreX() - 40, startY + knobSize + textBoxHeight + labelHeight + 10, 80, extraH);
         }
     };
 
@@ -350,8 +383,8 @@ void FXPanel::resized()
     }
     
     // COMP
-    if(compSlider.isVisible()) {
-        placeControls({ {&compSlider, &compLabel} });
+    if(compThreshSlider.isVisible()) {
+        placeControls({ {&compThreshSlider, &compThreshLabel}, {&compRatioSlider, &compRatioLabel} });
     }
     
     // DELAY
@@ -372,12 +405,13 @@ void FXPanel::resized()
 
 void FXPanel::mouseDown(const juce::MouseEvent& e)
 {
-    auto area = getLocalBounds().reduced(10);
-    area.removeFromTop(40);
+    auto area = getLocalBounds();
+    area.removeFromTop(30);  // タイトル
+    area.reduce(10, 5);
     
-    auto leftCol = area.removeFromLeft(area.getWidth() * 0.25f);
-    int slotHeight = 60;
-    int slotSpacing = 10;
+    auto leftCol = area.removeFromLeft(static_cast<int>(area.getWidth() * 0.20f));
+    int slotHeight = 45;
+    int slotSpacing = 4;
     
     for(int i=0; i<4; ++i)
     {
@@ -387,9 +421,12 @@ void FXPanel::mouseDown(const juce::MouseEvent& e)
         if(slotRect.contains(e.getPosition()))
         {
             selectedSlotIndex = i;
+            for (int j = 0; j < 4; ++j)
+                slotButtons[j].setToggleState(j == i, juce::dontSendNotification);
             updateSliderVisibility();
             repaint();
             
+            // 右クリックまたはエフェクトがNoneの場合はメニュー表示
             if (e.mods.isPopupMenu() || slots[i].type == EffectType::None)
             {
                showEffectMenu(i);
@@ -437,6 +474,18 @@ void FXPanel::showEffectMenu(int slotIndex)
         }
         
         slots[slotIndex].type = newType;
+        
+        // スロットボタンのテキストを更新
+        juce::String typeStr;
+        switch(newType) {
+            case EffectType::Filter: typeStr = "Filter"; break;
+            case EffectType::Compressor: typeStr = "Comp"; break;
+            case EffectType::Delay: typeStr = "Delay"; break;
+            case EffectType::Reverb: typeStr = "Reverb"; break;
+            case EffectType::BeatRepeat: typeStr = "Repeat"; break;
+            default: typeStr = "Empty"; break;
+        }
+        slotButtons[slotIndex].setButtonText(typeStr);
         
         // Enable new effect
         if (newType != EffectType::None && currentTrackId >= 0)

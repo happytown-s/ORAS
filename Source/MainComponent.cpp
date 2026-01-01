@@ -45,6 +45,19 @@ MainComponent::MainComponent()
 	addAndMakeVisible(visualizer);
 	addAndMakeVisible(transportPanel);
 	addChildComponent(fxPanel); // Initially hidden
+	
+	// FXパネルからのトラック選択コールバック
+	fxPanel.onTrackSelected = [this](int trackId) {
+		// 全トラックの選択を解除
+		for (auto& t : trackUIs)
+			t->setSelected(false);
+		
+		// 対応するトラックを選択
+		if (trackId >= 1 && trackId <= static_cast<int>(trackUIs.size()))
+			trackUIs[trackId - 1]->setSelected(true);
+		
+		DBG("🎯 FX Panel selected track ID: " << trackId);
+	};
 
 	transportPanel.onAction = [this](const juce::String& action)
 	{
@@ -209,13 +222,12 @@ MainComponent::MainComponent()
 				}
 			}
 			
-			if (selectedId != -1) {
+		if (selectedId != -1) {
 				isFXMode = true;
 				fxPanel.setTargetTrackId(selectedId);
 				fxPanel.setVisible(true);
 				
-				// Hide tracks
-				for(auto& t : trackUIs) t->setVisible(false);
+				// トラックはFXパネルと並べて表示するため非表示にしない
 				
 				DBG("🪄 Entered FX Mode for Track " << selectedId);
 			} else {
@@ -231,9 +243,11 @@ MainComponent::MainComponent()
 			fxPanel.setVisible(false);
 			
 			// Restore track visibility based on areTracksVisible
+			// visual mode (areTracksVisible = false) の場合はトラックを非表示のままにする
 			if (areTracksVisible) {
 				for(auto& t : trackUIs) t->setVisible(true);
 			}
+			// Note: resized()は下で呼ばれるのでレイアウトは更新される
 			
 			DBG("🔙 Exited FX Mode");
 		}
@@ -541,8 +555,32 @@ void MainComponent::resized()
         // 🎚 トラック群 または FXパネル
         if (isFXMode)
         {
-            // Show FX Panel instead of tracks
-            fxPanel.setBounds(area);
+            // まずトラックを通常配置
+            int x = 0, y = 0;
+            for (int i = 0; i < trackUIs.size(); i++)
+            {
+                int row = i / tracksPerRow;
+                int col = i % tracksPerRow;
+                x = col * (trackWidth + spacing);
+                y = row * (trackHeight + spacing);
+
+                trackUIs[i]->setBounds(area.getX() + x + spacing,
+                                      area.getY() + y + spacing,
+                                      trackWidth, trackHeight);
+                trackUIs[i]->setVisible(true);
+            }
+            
+            // FXパネルをフェーダー/メーター部分（トラック選択ボタンの下）にオーバーレイ
+            // trackWidth = 80（正方形の選択ボタン）、その下がフェーダー部分
+            int buttonSize = trackWidth;  // 正方形のボタン部分
+            int fxPanelTop = area.getY() + buttonSize + 15;  // ボタン + gap
+            auto fxArea = juce::Rectangle<int>(
+                area.getX(),
+                fxPanelTop,
+                area.getWidth(),
+                area.getHeight() - buttonSize - 15
+            );
+            fxPanel.setBounds(fxArea);
         }
         else
         {
@@ -564,12 +602,21 @@ void MainComponent::resized()
     {
         // --- 全画面ビジュアライザモード（トラック非表示） ---
         
-        // トランスポートパネルだけ下部に残す（オプション、今回はシンプルに下に配置）
+        // トランスポートパネルだけ下部に残す
         auto transportArea = area.removeFromBottom(70);
         transportPanel.setBounds(transportArea);
         
-        // 残りのエリア全部をビジュアライザに
-        visualizer.setBounds(area.reduced(10));
+        // FXモードの場合はFXパネルを表示、そうでなければビジュアライザを全画面表示
+        if (isFXMode)
+        {
+            fxPanel.setBounds(area);
+            // ビジュアライザは隠す（または小さく表示する場合はここで調整）
+        }
+        else
+        {
+            // 残りのエリア全部をビジュアライザに
+            visualizer.setBounds(area.reduced(10));
+        }
         
         // Toggle Button Removed (Moved to TransportPanel)
     }
