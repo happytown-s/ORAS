@@ -254,7 +254,7 @@ public:
 
         updateChannelUI(true); // Force refresh initially
         startTimerHz(30);
-        setSize(700, 750);
+        setSize(700, 900);
     }
     
     ~SettingsComponent() override
