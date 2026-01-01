@@ -203,7 +203,7 @@ public:
         viewport.setScrollBarsShown(true, false);
         addAndMakeVisible(viewport);
 
-        updateChannelUI();
+        updateChannelUI(true); // Force refresh initially
         startTimerHz(30);
         setSize(700, 750);
     }
@@ -290,12 +290,12 @@ public:
         repaint();
     }
     
-    void updateChannelUI()
+    void updateChannelUI(bool forceRefresh = false)
     {
         if (auto* device = deviceManager.getCurrentAudioDevice())
         {
             int numInputChannels = device->getActiveInputChannels().countNumberOfSetBits();
-            if (inputManager.getNumChannels() != numInputChannels)
+            if (forceRefresh || inputManager.getNumChannels() != numInputChannels)
             {
                 inputManager.setNumChannels(numInputChannels);
                 channelList.refresh();
