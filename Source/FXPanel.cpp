@@ -49,6 +49,12 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     filterSlider.setRange(20.0, 20000.0, 1.0);
     filterSlider.setSkewFactorFromMidPoint(1000.0);
     filterSlider.setValue(20000.0);
+    filterSlider.textFromValueFunction = [](double value) {
+        if (value >= 1000.0)
+            return juce::String(value / 1000.0, 1) + "kHz";
+        else
+            return juce::String(static_cast<int>(value)) + "Hz";
+    };
     filterSlider.onValueChange = [this]() {
         looper.setTrackFilterCutoff(currentTrackId, (float)filterSlider.getValue());
     };
@@ -56,6 +62,9 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     setupSlider(filterResSlider, filterResLabel, "RES", "IceBlue"); 
     filterResSlider.setRange(0.1, 10.0, 0.1);
     filterResSlider.setValue(0.707);
+    filterResSlider.textFromValueFunction = [](double value) {
+        return juce::String(value, 1);  // Q値は小数点1桁
+    };
     filterResSlider.onValueChange = [this]() {
         looper.setTrackFilterResonance(currentTrackId, (float)filterResSlider.getValue());
     };
@@ -74,6 +83,9 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     setupSlider(compThreshSlider, compThreshLabel, "THRESH", "MagmaRed");
     compThreshSlider.setRange(-60.0, 0.0, 1.0);
     compThreshSlider.setValue(-20.0);
+    compThreshSlider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(value)) + "dB";
+    };
     compThreshSlider.onValueChange = [this]() {
         looper.setTrackCompressor(currentTrackId, 
                                    (float)compThreshSlider.getValue(), 
@@ -83,6 +95,9 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
     setupSlider(compRatioSlider, compRatioLabel, "RATIO", "MagmaRed");
     compRatioSlider.setRange(1.0, 20.0, 0.5);
     compRatioSlider.setValue(4.0);
+    compRatioSlider.textFromValueFunction = [](double value) {
+        return juce::String(value, 1) + ":1";
+    };
     compRatioSlider.onValueChange = [this]() {
         looper.setTrackCompressor(currentTrackId, 
                                    (float)compThreshSlider.getValue(), 
@@ -91,39 +106,55 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
 
     // --- DELAY ---
     setupSlider(delaySlider, delayLabel, "TIME", "BlackHole");
-    delaySlider.setRange(0.0, 1.0, 0.01);
-    delaySlider.setValue(0.5);
+    delaySlider.setRange(0.0, 1000.0, 1.0);  // 0〜1000ms
+    delaySlider.setValue(500.0);
+    delaySlider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(value)) + "ms";
+    };
     delaySlider.onValueChange = [this]() {
-        looper.setTrackDelayMix(currentTrackId, (float)delayMixSlider.getValue(), (float)delaySlider.getValue());
+        // 内部値は0〜1に変換
+        looper.setTrackDelayMix(currentTrackId, (float)delayMixSlider.getValue() / 100.0f, (float)delaySlider.getValue() / 1000.0f);
     };
     
     setupSlider(delayFeedbackSlider, delayFeedbackLabel, "F.BACK", "BlackHole");
-    delayFeedbackSlider.setRange(0.0, 0.95, 0.01);
+    delayFeedbackSlider.setRange(0.0, 95.0, 1.0);  // 0〜95%
     delayFeedbackSlider.setValue(0.0);
+    delayFeedbackSlider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(value)) + "%";
+    };
     delayFeedbackSlider.onValueChange = [this]() {
-        looper.setTrackDelayFeedback(currentTrackId, (float)delayFeedbackSlider.getValue());
+        looper.setTrackDelayFeedback(currentTrackId, (float)delayFeedbackSlider.getValue() / 100.0f);
     };
     
     setupSlider(delayMixSlider, delayMixLabel, "MIX", "BlackHole");
-    delayMixSlider.setRange(0.0, 0.8, 0.01); 
+    delayMixSlider.setRange(0.0, 80.0, 1.0);  // 0〜80%
     delayMixSlider.setValue(0.0);
+    delayMixSlider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(value)) + "%";
+    };
     delayMixSlider.onValueChange = [this]() {
-        looper.setTrackDelayMix(currentTrackId, (float)delayMixSlider.getValue(), (float)delaySlider.getValue()); 
+        looper.setTrackDelayMix(currentTrackId, (float)delayMixSlider.getValue() / 100.0f, (float)delaySlider.getValue() / 1000.0f); 
     };
 
     // --- REVERB ---
     setupSlider(reverbSlider, reverbLabel, "MIX", "GasGiant");
-    reverbSlider.setRange(0.0, 1.0, 0.01);
+    reverbSlider.setRange(0.0, 100.0, 1.0);  // 0〜100%
     reverbSlider.setValue(0.0);
+    reverbSlider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(value)) + "%";
+    };
     reverbSlider.onValueChange = [this]() {
-        looper.setTrackReverbMix(currentTrackId, (float)reverbSlider.getValue());
+        looper.setTrackReverbMix(currentTrackId, (float)reverbSlider.getValue() / 100.0f);
     };
     
     setupSlider(reverbDecaySlider, reverbDecayLabel, "DECAY", "GasGiant");
-    reverbDecaySlider.setRange(0.0, 1.0, 0.01);
-    reverbDecaySlider.setValue(0.5);
+    reverbDecaySlider.setRange(0.0, 100.0, 1.0);  // 0〜100%
+    reverbDecaySlider.setValue(50.0);
+    reverbDecaySlider.textFromValueFunction = [](double value) {
+        return juce::String(static_cast<int>(value)) + "%";
+    };
     reverbDecaySlider.onValueChange = [this]() {
-        looper.setTrackReverbRoomSize(currentTrackId, (float)reverbDecaySlider.getValue());
+        looper.setTrackReverbRoomSize(currentTrackId, (float)reverbDecaySlider.getValue() / 100.0f);
     };
     
     // --- BEAT REPEAT ---
