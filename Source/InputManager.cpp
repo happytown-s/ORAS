@@ -36,13 +36,16 @@ void InputManager::reset()
 }
 
 //==============================================================================
-// メイン処理
+// メイン処理（マルチチャンネル対応版）
 //==============================================================================
 
 void InputManager::analyze(const juce::AudioBuffer<float>& input)
 {
     const int numSamples = input.getNumSamples();
+    const int numChannels = input.getNumChannels();
     if (numSamples == 0) return;
+
+    // チャンネル数は固定配列のため調整不要（最大8ch）
 
     // Use channel 0 for trigger analysis and buffering (Mono support for now)
     const float* readPtr = input.getReadPointer(0);
@@ -50,21 +53,56 @@ void InputManager::analyze(const juce::AudioBuffer<float>& input)
     // 1. Write to Ring Buffer
     inputBuffer.write(readPtr, numSamples);
 
-    // Calculate level for UI
+    // Calculate level for each channel
     float maxAmp = 0.0f;
-    for (int i = 0; i < numSamples; ++i)
+    for (int ch = 0; ch < numChannels; ++ch)
     {
-        float absSamp = std::abs(readPtr[i]);
-        if (absSamp > maxAmp) maxAmp = absSamp;
+        float chMax = 0.0f;
+        const float* chPtr = input.getReadPointer(ch);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            float absSamp = std::abs(chPtr[i]);
+            if (absSamp > chMax) chMax = absSamp;
+        }
+        
+        // ステレオリンクOFF（モノラルモード）の場合、ゲインブーストを適用
+        if (channelManager.getNumChannels() > 0 && !channelManager.isStereoLinked())
+        {
+            chMax *= ChannelTriggerSettings::getMonoGainBoostLinear();
+        }
+        
+        if (ch < MAX_CHANNELS)
+            channelLevels[static_cast<size_t>(ch)].store(chMax);
+        
+        if (chMax > maxAmp) maxAmp = chMax;
     }
     currentLevel.store(maxAmp); // Update atomic level
+    
+    // キャリブレーション中はピーク値を記録
+    if (calibrating)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            if (ch < static_cast<int>(calibrationPeaks.size()))
+            {
+                float chLevel = (ch < MAX_CHANNELS) 
+                                ? channelLevels[static_cast<size_t>(ch)].load() : 0.0f;
+                if (chLevel > calibrationPeaks[static_cast<size_t>(ch)])
+                    calibrationPeaks[static_cast<size_t>(ch)] = chLevel;
+            }
+        }
+        calibrationSampleCount += numSamples;
+        
+        // 2秒間測定したら自動停止
+        if (calibrationSampleCount >= static_cast<int>(sampleRate * 2.0))
+        {
+            stopCalibration();
+        }
+        return;  // キャリブレーション中はトリガー処理をスキップ
+    }
 
-	// 2. Process Triggers (2-stage logic)
-    // Low threshold = silence threshold (noise floor)
-    // High threshold = user threshold
-    bool trig = inputBuffer.processTriggers(readPtr, numSamples, 
-                                            config.silenceThreshold, 
-                                            config.userThreshold);
+	// 2. Process Triggers (2-stage logic / Multi-channel)
+    bool trig = detectMultiChannelTrigger(input);
 
 	// 3. State Update
 	if (trig && !triggered)
@@ -92,6 +130,106 @@ void InputManager::analyze(const juce::AudioBuffer<float>& input)
 }
 
 //==============================================================================
+// マルチチャンネル対応のトリガー検出
+// いずれか1チャンネルでも閾値を超えたらトリガー発火（One-shot）
+//==============================================================================
+
+bool InputManager::detectMultiChannelTrigger(const juce::AudioBuffer<float>& input)
+{
+    const int numChannels = input.getNumChannels();
+    const int numSamples = input.getNumSamples();
+    
+    if (numChannels == 0 || numSamples == 0) return false;
+    
+    // チャンネルマネージャーの設定がなければ従来のロジックを使用
+    if (channelManager.getNumChannels() == 0)
+    {
+        const float* readPtr = input.getReadPointer(0);
+        return inputBuffer.processTriggers(readPtr, numSamples, 
+                                           config.silenceThreshold, 
+                                           config.userThreshold);
+    }
+    
+    // 各チャンネルをチェック（いずれか1つでも閾値を超えたらトリガー）
+    for (int ch = 0; ch < juce::jmin(numChannels, channelManager.getNumChannels()); ++ch)
+    {
+        const auto& chSettings = channelManager.getSettings(ch);
+        
+        // 無効なチャンネルはスキップ
+        if (!chSettings.isActive) continue;
+        
+        // ステレオリンク時は偶数チャンネル（L）のみ処理、奇数チャンネル（R）はスキップ
+        if (chSettings.isStereoLinked && (ch % 2 == 1)) continue;
+        
+        float effectiveThreshold = chSettings.getEffectiveThreshold();
+        
+        // モノラルモードの場合、ゲインブーストを考慮して閾値を下げる
+        // （信号がブーストされるので、同じ実効閾値を維持するため）
+        if (!chSettings.isStereoLinked)
+        {
+            // ブースト後の信号と比較するので、閾値はそのまま
+        }
+        
+        const float* chPtr = input.getReadPointer(ch);
+        
+        // ステレオリンクの場合、L+R両方をチェック
+        if (chSettings.isStereoLinked && ch + 1 < numChannels)
+        {
+            const float* chPtrR = input.getReadPointer(ch + 1);
+            for (int i = 0; i < numSamples; ++i)
+            {
+                float maxSample = juce::jmax(std::abs(chPtr[i]), std::abs(chPtrR[i]));
+                if (maxSample > effectiveThreshold)
+                {
+                    // リングバッファにも書き込みが必要
+                    return inputBuffer.processTriggers(chPtr, numSamples, 
+                                                       config.silenceThreshold, 
+                                                       effectiveThreshold);
+                }
+            }
+        }
+        else
+        {
+            // モノラルまたは単独チャンネル
+            float gainBoost = chSettings.isStereoLinked ? 1.0f : ChannelTriggerSettings::getMonoGainBoostLinear();
+            
+            for (int i = 0; i < numSamples; ++i)
+            {
+                float sampleLevel = std::abs(chPtr[i]) * gainBoost;
+                if (sampleLevel > effectiveThreshold)
+                {
+                    return inputBuffer.processTriggers(chPtr, numSamples, 
+                                                       config.silenceThreshold, 
+                                                       effectiveThreshold);
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+//==============================================================================
+// チャンネルごとのエネルギー計算
+//==============================================================================
+
+float InputManager::computeChannelEnergy(const juce::AudioBuffer<float>& input, int channel)
+{
+    if (channel < 0 || channel >= input.getNumChannels()) return 0.0f;
+    
+    const int numSamples = input.getNumSamples();
+    const float* data = input.getReadPointer(channel);
+    float total = 0.0f;
+    
+    for (int i = 0; i < numSamples; ++i)
+    {
+        total += data[i] * data[i];
+    }
+    
+    return std::sqrt(total / static_cast<float>(numSamples));
+}
+
+//==============================================================================
 // エネルギー（RMS）を計算
 //==============================================================================
 
@@ -115,12 +253,51 @@ float InputManager::computeEnergy(const juce::AudioBuffer<float>& input)
 }
 
 //==============================================================================
+// キャリブレーション（ノイズフロア測定）
+//==============================================================================
+
+void InputManager::startCalibration()
+{
+    int numChannels = channelManager.getNumChannels();
+    if (numChannels == 0) numChannels = 2;  // デフォルト2ch
+    
+    calibrationPeaks.clear();
+    calibrationPeaks.resize(static_cast<size_t>(numChannels), 0.0f);
+    calibrationSampleCount = 0;
+    calibrating = true;
+    
+    DBG("📊 Calibration started (" << numChannels << " channels)");
+}
+
+void InputManager::stopCalibration()
+{
+    calibrating = false;
+    
+    // 測定結果をチャンネル設定に反映
+    int numChannels = juce::jmin(static_cast<int>(calibrationPeaks.size()), 
+                                  channelManager.getNumChannels());
+    
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        float noiseFloor = calibrationPeaks[static_cast<size_t>(ch)];
+        // ノイズフロアに少しマージンを追加（1.5倍）
+        channelManager.getSettings(ch).calibratedNoiseFloor = noiseFloor * 1.5f;
+        
+        DBG("📊 Channel " << ch << " noise floor: " << noiseFloor 
+            << " -> calibrated: " << (noiseFloor * 1.5f));
+    }
+    
+    DBG("📊 Calibration complete!");
+}
+
+//==============================================================================
 // 状態遷移（仮）
 //==============================================================================
 void InputManager::updateStateMachine()
 {
 	// 将来的に「録音中→停止判定」などをここに追加
 }
+
 //==============================================================================
 // Getter / Setter
 //==============================================================================
@@ -139,6 +316,7 @@ const SmartRecConfig& InputManager::getConfig() const noexcept
 {
 	return config;
 }
+
 //==============================================================================
 // 閾値検知：ブロック内の最大音量を確認
 //==============================================================================
@@ -168,4 +346,5 @@ bool InputManager::detectTriggerSample(const juce::AudioBuffer<float>& input)
 	}
 	return false;
 }
+
 

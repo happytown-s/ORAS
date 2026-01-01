@@ -925,6 +925,15 @@ void MainComponent::saveAudioDeviceSettings()
 		{
 			appProperties->setValue("audioDeviceState", xml.get());
 			appProperties->setValue("triggerThreshold", inputTap.getManager().getConfig().userThreshold);
+			
+			// マルチチャンネル設定を保存
+			appProperties->setValue("stereoLinked", inputTap.getManager().isStereoLinked());
+			appProperties->setValue("calibrationEnabled", inputTap.getManager().isCalibrationEnabled());
+			
+			// チャンネル設定をJSON形式で保存
+			juce::var channelSettings = inputTap.getManager().getChannelManager().toVar();
+			appProperties->setValue("channelSettings", juce::JSON::toString(channelSettings));
+			
 			appProperties->saveIfNeeded();
 			DBG("🔧 Audio device settings & Trigger Threshold saved");
 		}
@@ -956,5 +965,24 @@ void MainComponent::loadAudioDeviceSettings()
         conf.userThreshold = (float)savedThresh;
         inputTap.getManager().setConfig(conf);
         DBG("✅ Trigger Threshold restored: " << savedThresh);
+        
+        // マルチチャンネル設定を復元
+        bool stereoLinked = appProperties->getBoolValue("stereoLinked", true);
+        inputTap.getManager().setStereoLinked(stereoLinked);
+        
+        bool calibEnabled = appProperties->getBoolValue("calibrationEnabled", true);
+        inputTap.getManager().setCalibrationEnabled(calibEnabled);
+        
+        // チャンネル設定をJSONから復元
+        juce::String channelSettingsJson = appProperties->getValue("channelSettings", "");
+        if (channelSettingsJson.isNotEmpty())
+        {
+            juce::var parsed = juce::JSON::parse(channelSettingsJson);
+            if (!parsed.isVoid())
+            {
+                inputTap.getManager().getChannelManager().fromVar(parsed);
+                DBG("✅ Channel settings restored");
+            }
+        }
 	}
 }

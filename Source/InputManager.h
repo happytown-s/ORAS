@@ -12,6 +12,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "TriggerEvent.h"
 #include "AudioInputBuffer.h"
+#include "ChannelTriggerSettings.h"
 
 struct SmartRecConfig
 {
@@ -28,6 +29,7 @@ struct SmartRecConfig
 
 // ===============================================
 // SmartRecの中心：InputManager
+// マルチチャンネル対応版
 // ===============================================
 
 class InputManager
@@ -39,6 +41,13 @@ class InputManager
 	void prepare(double sampleRate, int bufferSize);
 	void reset();
 
+	// チャンネル数を設定（デバイス変更時に呼び出す）
+	void setNumChannels(int numChannels)
+	{
+		channelManager.setNumChannels(numChannels);
+	}
+	
+	int getNumChannels() const { return channelManager.getNumChannels(); }
 
 	//メイン解析処理
 	void analyze(const juce::AudioBuffer<float>& input) ;
@@ -52,19 +61,44 @@ class InputManager
 	//設定
 	void setConfig(const SmartRecConfig& newConfig) noexcept;
 	const SmartRecConfig& getConfig() const noexcept;
+	
+	// マルチチャンネル設定アクセス
+	MultiChannelTriggerManager& getChannelManager() { return channelManager; }
+	const MultiChannelTriggerManager& getChannelManager() const { return channelManager; }
+	
+	// ステレオリンク設定
+	void setStereoLinked(bool linked) { channelManager.setStereoLinked(linked); }
+	bool isStereoLinked() const { return channelManager.isStereoLinked(); }
+	
+	// キャリブレーション
+	void setCalibrationEnabled(bool enabled) { channelManager.setCalibrationEnabled(enabled); }
+	bool isCalibrationEnabled() const { return channelManager.isCalibrationEnabled(); }
+	
+	// キャリブレーション実行（ノイズフロア測定開始）
+	void startCalibration();
+	void stopCalibration();
+	bool isCalibrating() const { return calibrating; }
 
 private:
 
 	float computeEnergy(const juce::AudioBuffer<float>& input);
+	
+	// マルチチャンネル対応のエネルギー計算
+	float computeChannelEnergy(const juce::AudioBuffer<float>& input, int channel);
 
 	//内部ロジック
 	bool detectTriggerSample(const juce::AudioBuffer<float>& input);
+	
+	// マルチチャンネル対応のトリガー検出
+	bool detectMultiChannelTrigger(const juce::AudioBuffer<float>& input);
+	
 	long findSilenceStartAbs(long triggerAbsIndex);
 	long findAttackStartAbs(long triggerAbsIndex);
 	void updateStateMachine();
 
 	//===内部データ===
     AudioInputBuffer inputBuffer; // Ring Buffer for 2-stage trigger
+    MultiChannelTriggerManager channelManager;  // マルチチャンネル設定
 
 	SmartRecConfig config;
 	juce::TriggerEvent triggerEvent;
@@ -74,6 +108,11 @@ private:
 	bool recording = false;
 	
 	float smoothedEnergy = 0.0f;
+	
+	// キャリブレーション用
+	bool calibrating = false;
+	int calibrationSampleCount = 0;
+	std::vector<float> calibrationPeaks;  // チャンネルごとのピーク値
 
 public:
     // Lookback wrapper
@@ -81,7 +120,19 @@ public:
     AudioInputBuffer& getInputBuffer() { return inputBuffer; }
     
     float getCurrentLevel() const { return currentLevel.load(); }
+    
+    // チャンネルごとのレベル取得（最大8ch）
+    float getChannelLevel(int channel) const
+    {
+        if (channel >= 0 && channel < MAX_CHANNELS)
+            return channelLevels[static_cast<size_t>(channel)].load();
+        return 0.0f;
+    }
+    
+    static constexpr int MAX_CHANNELS = 8;
 
 private:
     std::atomic<float> currentLevel { 0.0f };
+    std::array<std::atomic<float>, 8> channelLevels {};  // チャンネルごとのレベル（最大8ch）
 };
+
