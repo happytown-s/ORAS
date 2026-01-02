@@ -650,7 +650,11 @@ private:
         
         // ベースの力 (通常時ゆっくり) + ドラッグによる追加力
         // dragVelocityRemainingが正なら収束加速、負なら拡散
-        float currentAdditionalForce = dragVelocityRemaining * 0.05f;
+        // 拡散時は係数を小さくしてゆっくり広がるようにする
+        float forceMultiplier = (dragVelocityRemaining < 0) ? 0.01f : 0.05f;
+        float currentAdditionalForce = dragVelocityRemaining * forceMultiplier;
+        // 極端な値にならないようクランプ
+        currentAdditionalForce = juce::jlimit(-0.3f, 1.5f, currentAdditionalForce);
         
         // ループ外でキャッシュ（パフォーマンス最適化）
         bool isDiffusing = (dragVelocityRemaining < -0.1f);
@@ -668,7 +672,6 @@ private:
                 float dirY = -particles[i].y / dist;
                 
                 // 力の合成: 通常引力(正) + 追加力(正or負)
-                // 追加力が強烈な負の場合、全体として負(拡散)になる
                 float totalForce = (attractStrength * 0.015f) + currentAdditionalForce;
                 
                 particles[i].vx += dirX * totalForce;
