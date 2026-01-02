@@ -12,9 +12,9 @@
             "problemMatcher": []
         },
         {
-            "label": "Run ORAS",
+            "label": "Run SAROS",
             "type": "shell",
-            "command": "open ${workspaceFolder}/build/ORASApp/ORAS.app",
+            "command": "open ${workspaceFolder}/build/SAROSApp/SAROS.app",
             "problemMatcher": [],
             "dependsOn": "CMake: build"
         }

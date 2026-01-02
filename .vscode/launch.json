@@ -2,13 +2,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch ORAS",
+            "name": "Launch SAROS",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ORASApp/ORAS.app/Contents/MacOS/ORAS",
+            "program": "${workspaceFolder}/build/SAROSApp/SAROS.app/Contents/MacOS/SAROS",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build/ORASApp/ORAS.app/Contents/MacOS",
+            "cwd": "${workspaceFolder}/build/SAROSApp/SAROS.app/Contents/MacOS",
             "environment": [],
             "externalConsole": false,
             "preLaunchTask": "CMake: build"

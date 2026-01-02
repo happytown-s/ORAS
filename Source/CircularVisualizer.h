@@ -475,8 +475,8 @@ public:
     {
         updateParticles();
         
-        // スムーズなズームアニメーション (0.15 -> 0.05 ゆっくり)
-        zoomScale += (targetZoomScale - zoomScale) * 0.05f;
+        // スムーズなズームアニメーション - 反応速度を上げる
+        zoomScale += (targetZoomScale - zoomScale) * 0.12f;
         
         // 波形の出現アニメーション (0.15 -> 0.05 ゆっくり)
         for (auto& wp : waveformPaths)
@@ -650,11 +650,11 @@ private:
         
         // ベースの力 (通常時ゆっくり) + ドラッグによる追加力
         // dragVelocityRemainingが正なら収束加速、負なら拡散
-        // 拡散時は係数を小さく、収束時も半分にしてゆっくりに
-        float forceMultiplier = (dragVelocityRemaining < 0) ? 0.02f : 0.025f;
+        // パーティクルの反応速度を上げるため係数を増加
+        float forceMultiplier = (dragVelocityRemaining < 0) ? 0.06f : 0.07f;
         float currentAdditionalForce = dragVelocityRemaining * forceMultiplier;
-        // 極端な値にならないようクランプ
-        currentAdditionalForce = juce::jlimit(-0.5f, 0.8f, currentAdditionalForce);
+        // 極端な値にならないようクランプ（範囲も拡大）
+        currentAdditionalForce = juce::jlimit(-1.2f, 1.5f, currentAdditionalForce);
         
         // ループ外でキャッシュ（パフォーマンス最適化）
         bool isDiffusing = (dragVelocityRemaining < -0.1f);
@@ -724,8 +724,8 @@ private:
             particles[i].size = juce::jmax(0.5f, particles[i].size);
         }
         
-        // ドラッグ力の減衰 (慣性)
-        dragVelocityRemaining *= 0.92f;
+        // ドラッグ力の減衰 (慣性) - 素早く減衰して反応を鋭くする
+        dragVelocityRemaining *= 0.85f;
         if (std::abs(dragVelocityRemaining) < 0.001f) dragVelocityRemaining = 0.0f;
     }
 
