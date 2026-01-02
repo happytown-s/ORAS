@@ -165,6 +165,14 @@ public:
     
     bool isInPreRoll() const { return inPreRoll; }
     
+    // 明示的にPreRoll状態をリセット（トリガー再設定）
+    void resetPreRoll()
+    {
+        inPreRoll = false;
+        potentialStartIndex = -1;
+        silenceCounter = 0;
+    }
+    
     // Helper to clear buffer
     void clear()
     {

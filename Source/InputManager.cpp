@@ -150,6 +150,10 @@ bool InputManager::detectMultiChannelTrigger(const juce::AudioBuffer<float>& inp
                                            config.userThreshold);
     }
     
+    // 全体のピークレベルを計測（鎮火判定用）
+    float maxLevelOverall = 0.0f;
+    float lowestThreshold = 1.0f;  // 最も低い閾値を記録
+    
     // 各チャンネルをチェック（いずれか1つでも閾値を超えたらトリガー）
     for (int ch = 0; ch < juce::jmin(numChannels, channelManager.getNumChannels()); ++ch)
     {
@@ -162,13 +166,7 @@ bool InputManager::detectMultiChannelTrigger(const juce::AudioBuffer<float>& inp
         if (chSettings.isStereoLinked && (ch % 2 == 1)) continue;
         
         float effectiveThreshold = chSettings.getEffectiveThreshold();
-        
-        // モノラルモードの場合、ゲインブーストを考慮して閾値を下げる
-        // （信号がブーストされるので、同じ実効閾値を維持するため）
-        if (!chSettings.isStereoLinked)
-        {
-            // ブースト後の信号と比較するので、閾値はそのまま
-        }
+        lowestThreshold = juce::jmin(lowestThreshold, effectiveThreshold);
         
         const float* chPtr = input.getReadPointer(ch);
         
@@ -179,9 +177,10 @@ bool InputManager::detectMultiChannelTrigger(const juce::AudioBuffer<float>& inp
             for (int i = 0; i < numSamples; ++i)
             {
                 float maxSample = juce::jmax(std::abs(chPtr[i]), std::abs(chPtrR[i]));
+                maxLevelOverall = juce::jmax(maxLevelOverall, maxSample);
+                
                 if (maxSample > effectiveThreshold)
                 {
-                    // リングバッファにも書き込みが必要
                     return inputBuffer.processTriggers(chPtr, numSamples, 
                                                        config.silenceThreshold, 
                                                        effectiveThreshold);
@@ -196,6 +195,8 @@ bool InputManager::detectMultiChannelTrigger(const juce::AudioBuffer<float>& inp
             for (int i = 0; i < numSamples; ++i)
             {
                 float sampleLevel = std::abs(chPtr[i]) * gainBoost;
+                maxLevelOverall = juce::jmax(maxLevelOverall, sampleLevel);
+                
                 if (sampleLevel > effectiveThreshold)
                 {
                     return inputBuffer.processTriggers(chPtr, numSamples, 
@@ -204,6 +205,14 @@ bool InputManager::detectMultiChannelTrigger(const juce::AudioBuffer<float>& inp
                 }
             }
         }
+    }
+    
+    // 🔥 鎮火ロジック: 全チャンネルが閾値の半分未満なら PreRoll をリセット
+    // （次のトリガーを受け付けられるようにする）
+    if (inputBuffer.isInPreRoll() && maxLevelOverall < lowestThreshold * 0.5f)
+    {
+        inputBuffer.resetPreRoll();
+        DBG("🔄 PreRoll reset (silence detected, level: " << maxLevelOverall << ")");
     }
     
     return false;

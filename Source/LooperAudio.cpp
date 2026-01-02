@@ -218,6 +218,7 @@ void LooperAudio::stopRecording(int trackId)
             track.recordStartSample = 0;
 
         masterReadPosition = 0;
+        track.readPosition = 0;  // 🆕 ギャップ修正: マスター作成時は直接0から開始
 
         DBG("🎛 Master loop length set to " << masterLoopLength
             << " samples | recorded=" << recordedLength
