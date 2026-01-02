@@ -419,8 +419,9 @@ void FXPanel::resized()
         if (extra)
         {
             // Place extra component (like button) below the middle or first knob
-            int extraH = 35;
-            extra->setBounds(rightArea.getCentreX() - 40, startY + knobSize + textBoxHeight + labelHeight + 10, 80, extraH);
+            // 少し上に詰めて配置 (Y座標調整: +10 -> +5, extraH: 35 -> 30)
+            int extraH = 30;
+            extra->setBounds(rightArea.getCentreX() - 40, startY + knobSize + textBoxHeight + labelHeight + 2, 80, extraH);
         }
     };
 

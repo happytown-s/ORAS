@@ -45,23 +45,23 @@ public:
             }
         }
         
-        // --- フロステッドガラス背景 ---
+        // --- フロステッドガラス背景 (透明度を上げてよりガラスらしく) ---
         juce::ColourGradient glassGradient(
-            juce::Colour(40, 45, 55).withAlpha(isSelected ? 0.9f : 0.75f), 
+            juce::Colour(40, 45, 55).withAlpha(isSelected ? 0.7f : 0.4f), 
             bounds.getCentreX(), bounds.getY(),
-            juce::Colour(25, 30, 40).withAlpha(0.95f), 
+            juce::Colour(25, 30, 40).withAlpha(isSelected ? 0.8f : 0.5f), 
             bounds.getCentreX(), bounds.getBottom(),
             false
         );
         g.setGradientFill(glassGradient);
         g.fillRoundedRectangle(bounds, cornerRadius);
         
-        // --- 上部ハイライト（ガラス反射効果） ---
+        // --- 上部ハイライト（ガラス反射効果・より鮮明に） ---
         juce::Path highlight;
-        highlight.addRoundedRectangle(bounds.getX() + 4, bounds.getY() + 2, 
-                                     bounds.getWidth() - 8, bounds.getHeight() * 0.3f,
+        highlight.addRoundedRectangle(bounds.getX() + 2, bounds.getY() + 2, 
+                                     bounds.getWidth() - 4, bounds.getHeight() * 0.4f,
                                      cornerRadius - 2, cornerRadius - 2, true, true, false, false);
-        g.setColour(juce::Colours::white.withAlpha(0.08f));
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
         g.fillPath(highlight);
         
         // --- 押下時の内側シャドウ ---
