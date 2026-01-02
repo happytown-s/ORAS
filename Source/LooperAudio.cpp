@@ -381,7 +381,7 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             const int samplesToEnd = loopLength - readPos;
             const int samplesToCopy = juce::jmin(remaining, samplesToEnd);
 
-            for (int ch = 0; ch < numChannels; ++ch)
+            for (int ch = 0; ch < trackBuffer.getNumChannels(); ++ch)
             {
                 trackBuffer.addFrom(ch, outputOffset, track.buffer, ch, readPos, samplesToCopy, track.gain);
             }
@@ -442,7 +442,7 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
                     int sourceReadPos = (br.repeatSourcePos + br.currentRepeatPos) % loopLength;
                     
                     // Copy from captured segment
-                    for (int ch = 0; ch < numChannels; ++ch)
+                    for (int ch = 0; ch < trackBuffer.getNumChannels(); ++ch)
                     {
                         trackBuffer.addFrom(ch, fillOffset, track.buffer, ch, sourceReadPos, chunk, track.gain);
                     }
