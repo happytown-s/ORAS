@@ -20,16 +20,24 @@ jobs:
       uses: actions/cache@v4
       with:
         path: JUCE
-        key: juce-7.0.9
+        key: juce-7.0.9-git
     
-    - name: Download JUCE
+    - name: Clone JUCE
       if: steps.cache-juce.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-windows.zip" -OutFile "juce.zip"
-        Expand-Archive -Path "juce.zip" -DestinationPath "."
-        Rename-Item -Path "JUCE" -NewName "JUCE_temp" -ErrorAction SilentlyContinue
-        Move-Item -Path "juce-7.0.9" -Destination "JUCE" -ErrorAction SilentlyContinue
-        if (Test-Path "JUCE_temp") { Remove-Item -Path "JUCE_temp" -Recurse -Force }
+        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+    
+    - name: Verify JUCE directory
+      run: |
+        echo "=== JUCE directory contents ==="
+        Get-ChildItem -Path JUCE | Select-Object Name
+        echo "=== Checking CMakeLists.txt ==="
+        if (Test-Path "JUCE/CMakeLists.txt") { 
+          echo "JUCE/CMakeLists.txt exists" 
+        } else { 
+          echo "ERROR: JUCE/CMakeLists.txt NOT FOUND"
+          exit 1
+        }
     
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
@@ -40,9 +48,17 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
     
+    - name: Find and list build output
+      run: |
+        echo "=== Searching for EXE files ==="
+        Get-ChildItem -Path build -Recurse -Filter "*.exe" | ForEach-Object { echo $_.FullName }
+    
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: SAROS-Windows
-        path: build/SAROSApp/Release/*.exe
+        path: |
+          build/**/*.exe
+          !build/**/juceaide.exe
+          !build/**/CMake*
         if-no-files-found: warn
