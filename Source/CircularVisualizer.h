@@ -14,11 +14,14 @@ public:
     {
         setOpaque(false); 
         startTimerHz(60);
+        setInterceptsMouseClicks(true, true); // マウス操作を確実に受け取る
         
         // Initialize particles
         for (int i = 0; i < numParticles; ++i)
             resetParticle(i);
     }
+    
+
     
     // デバッグ用直線波形表示のオン/オフ
     bool showLinearDebug = false;
@@ -543,7 +546,8 @@ private:
         // 上ドラッグ(deltaY > 0) -> 拡大 -> 拡散(反対方向) -> 負の力
         // 下ドラッグ(deltaY < 0) -> 縮小 -> 収束加速(通常方向) -> 正の力
         // 係数は感度調整
-        dragVelocityRemaining = -deltaY * 5.0f; 
+        // 変化を分かりやすくするために係数を大幅アップ (5.0 -> 30.0)
+        dragVelocityRemaining = -deltaY * 30.0f; 
         
         lastDragPos = e.position;
     }
