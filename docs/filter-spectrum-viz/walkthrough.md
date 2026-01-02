@@ -1,42 +1,42 @@
-# Walkthrough - ORAS (formerly Looper)
+# ウォークスルー - ORAS
 
-## Latest Changes: Filter & Spectrum Visualization
+## 最新の変更: フィルター＆スペクトラム可視化
 
-### Overview
-A new visualization component has been integrated into the FX Panel. It displays a real-time frequency spectrum of the selected track and overlays the frequency response curve of the active filter.
+### 概要
+FXパネルに新しい可視化コンポーネントを統合しました。選択されたトラックのリアルタイム周波数スペクトラムを表示し、アクティブなフィルターの周波数特性曲線を重ねて表示します。
 
-### Features
-- **Real-time Spectrum**: Visualizes the audio content of the specific track being edited.
-- **Filter Envelope**: Shows the magnitude response curve based on the current Cutoff, Resonance, and Filter Type (LPF/HPF).
-- **Interactive**: The white filter curve updates instantly as you move the filter sliders.
-- **Integrated UI**: Located directly within the FX Panel when the Filter slot is selected.
+### 特徴
+- **リアルタイムスペクトラム**: 編集中の特定トラックのオーディオ内容を可視化します。
+- **フィルターエンベロープ**: 現在のCutoff、Resonance、フィルタータイプ (LPF/HPF) に基づいたマグニチュード応答曲線を表示します。
+- **インタラクティブ**: フィルタースライダーを動かすと、白いフィルター曲線が即座に反応します。
+- **統合UI**: FXパネル内でフィルタースロットが選択されている時に表示されます。
 
-### Files Created/Modified
-- `Source/FilterSpectrumVisualizer.h` [NEW]: The visualization component.
-- `Source/LooperAudio.h/cpp`: Added monitoring FIFO to transfer audio from the audio thread to the UI thread.
-- `Source/FXPanel.h/cpp`: Integrated the visualizer and linked it to filter controls.
+### 作成・変更されたファイル
+- `Source/FilterSpectrumVisualizer.h` [NEW]: 可視化コンポーネント。
+- `Source/LooperAudio.h/cpp`: オーディオスレッドからUIスレッドへ音声データを転送するモニタリングFIFOを追加。
+- `Source/FXPanel.h/cpp`: ビジュアライザーを統合し、フィルターコントロールと連携。
 
-### Verification Steps
-1.  **Launch the Application**: Open ORAS.
-2.  **Load/Record Audio**: Ensure a track has audio playing.
-3.  **Select Filter Effect**:
-    - Click on an empty slot in the FX Panel.
-    - Select "Filter" from the menu.
-4.  **Observe Visualization**:
-    - A new visualizer panel should appear above the filter knobs.
-    - You should see the spectrum of the audio moving.
-5.  **Adjust Filter Controls**:
-    - Move the **FREQ** slider: The white curve should shift left/right.
-    - Move the **RES** slider: The peak of the curve should change.
-    - Toggle **LPF/HPF**: The curve shape should flip.
-6.  **Verify Sound**: Ensure the visual changes correspond to the audible filter effect.
+### 検証ステップ
+1.  **アプリの起動**: ORASを開きます。
+2.  **音声のロード/録音**: トラックが再生されていることを確認します。
+3.  **フィルターエフェクトの選択**:
+    - FXパネルの空きスロットをクリック。
+    - メニューから "Filter" を選択。
+4.  **表示の確認**:
+    - フィルターノブの上に新しいビジュアライザーパネルが表示されます。
+    - 音声のスペクトラムが動いているのが見えます。
+5.  **フィルター操作**:
+    - **FREQ** スライダーを動かす: 白い曲線が左右に移動します。
+    - **RES** スライダーを動かす: 曲線のピークが変化します。
+    - **LPF/HPF** 切り替え: 曲線の形状が反転します。
+6.  **音の確認**: 視覚的な変化が聴感上のフィルター効果と一致していることを確認します。
 
-### Previous Changes (Multi-Channel UI)
-- **Settings UI**: Tabbed interface (Device / Trigger)
-- **16-Channel Support**: Compact grid layout for channel pairs.
-- **Input Monitoring**: Device channel names displayed on cards.
+### 以前の変更 (マルチチャンネルUI)
+- **設定画面**: タブインターフェース (Device / Trigger)
+- **16チャンネル対応**: チャンネルペアを並べたコンパクトなグリッドレイアウト。
+- **入力モニタリング**: デバイスのチャンネル名をカードに表示。
 
-## Status
-- [x] Multi-Channel 16ch Support
-- [x] Settings UI Refactor
-- [x] Filter & Spectrum Visualization
+## ステータス
+- [x] 16チャンネル・マルチチャンネル対応
+- [x] 設定画面 UIリファクタリング
+- [x] フィルター＆スペクトラム可視化

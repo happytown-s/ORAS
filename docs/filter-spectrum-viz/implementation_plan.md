@@ -1,43 +1,41 @@
-# Filter Envelope & Spectrum Visualization Implementation Plan
+# フィルターエンベロープ＆スペクトラム可視化 実装プラン
 
-## Goal
-Visualize the frequency spectrum of the currently selected track and overlay the frequency response curve of the active filter (Cutoff/Resonance).
+## 目的
+選択されているトラックの周波数スペクトラムをリアルタイムで表示し、その上にアクティブなフィルター（カットオフ/レゾナンス）の周波数応答カーブを重ねて表示します。
 
-## User Review Required
+## ユーザーレビューが必要な事項
 > [!NOTE]
-> This feature adds real-time FFT processing for visualization. It is lightweight but adds some CPU load on the UI thread.
-> Using `juce::AbstractFifo` for thread-safe data transfer from Audio thread to UI thread.
+> この機能は、可視化のためにリアルタイムのFFT処理を追加します。軽量ですが、UIスレッドに多少のCPU負荷がかかります。
+> オーディオスレッドからUIスレッドへのスレッドセーフなデータ転送には `juce::AbstractFifo` を使用します。
 
-## Proposed Changes
+## 変更予定の内容
 
 ### [LooperAudio](file:///Users/mtsh/書類/code/JUCE/ORAS/Source/LooperAudio.h)
-- **Add Monitoring FIFO**:
+- **モニタリング用FIFOの追加**:
     - `juce::AbstractFifo monitorFifo { 4096 }`
     - `std::vector<float> monitorBuffer`
     - `std::atomic<int> monitorTrackId { -1 }`
-- **Audio Processing**:
-    - In `mixTracksToOutput` loop, if `trackId == monitorTrackId`, push samples to `monitorFifo`.
+- **オーディオ処理**:
+    - `mixTracksToOutput` ループ内で `trackId == monitorTrackId` の場合、サンプルを `monitorFifo` にプッシュ。
 
 ### [NEW] [FilterSpectrumVisualizer](file:///Users/mtsh/書類/code/JUCE/ORAS/Source/FilterSpectrumVisualizer.h)
-- **Component**:
-    - `juce::dsp::FFT forwardFFT` (Order 10 or 11 = 1024 or 2048 points)
+- **コンポーネント**:
+    - `juce::dsp::FFT forwardFFT` (1024 or 2048ポイント)
     - `paint(g)`:
-        - Draw frequency grid (20Hz - 20kHz, Logarithmic).
-        - Draw FFT spectrum (filled gradient).
-        - Draw Filter magnitude response (thick line).
-- **Filter Curve Calculation**:
-    - Calculate magnitude response $H(f)$ for State Variable Filter (Lowpass/Highpass).
-    - Use formula: $|H(e^{j\omega})|$ where $\omega = 2\pi f / f_s$.
+        - 周波数グリッドの描画 (20Hz - 20kHz, 対数軸)。
+        - FFTスペクトラムの描画 (グラデーション塗りつぶし)。
+        - フィルターのマグニチュード応答曲線の描画 (太線)。
+- **フィルターカーブの計算**:
+    - State Variable Filter (LPF/HPF) のマグニチュード応答 $H(f)$ を計算。
 
 ### [FXPanel](file:///Users/mtsh/書類/code/JUCE/ORAS/Source/FXPanel.cpp)
-- **Integration**:
-    - Add `FilterSpectrumVisualizer` member.
-    - Place it in the layout (e.g., above or beside the filter sliders).
-    - In `timerCallback` (or creating one), pull data from `LooperAudio` and push to `FilterSpectrumVisualizer`.
-    - Note: `FXPanel` might need to become a `Timer` to drive the visualization updates.
+- **統合**:
+    - `FilterSpectrumVisualizer` メンバを追加。
+    - レイアウトに配置 (フィルタースライダーの上など)。
+    - `timerCallback` 内で `LooperAudio` からデータを取得し `FilterSpectrumVisualizer` へ供給。
 
-## Verification Plan
-### Manual Verification
-- Play a track and verify spectrum movement.
-- Move Filter Cutoff/Resonance sliders and verify the white curve updates instantly.
-- Switch tracks and verify spectrum changes to the new track source.
+## 検証プラン
+### 手動検証
+- トラックを再生し、スペクトラムの動きを確認。
+- フィルターのCutoff/Resonanceスライダーを動かし、白いカーブが即座に更新されることを確認。
+- トラックを切り替え、スペクトラムのソースが新しいトラックに変更されることを確認。
