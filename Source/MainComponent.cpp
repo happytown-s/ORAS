@@ -943,7 +943,7 @@ void MainComponent::saveAudioDeviceSettings()
 void MainComponent::loadAudioDeviceSettings()
 {
 	// まず基本的な初期化（デフォルト設定）
-	setAudioChannels(2, 2);
+	setAudioChannels(MAX_CHANNELS, MAX_CHANNELS);
 	
 	// 保存された設定があれば復元
 	if (appProperties != nullptr)
@@ -951,7 +951,7 @@ void MainComponent::loadAudioDeviceSettings()
 		auto xmlState = appProperties->getXmlValue("audioDeviceState");
 		if (xmlState != nullptr)
 		{
-			deviceManager.initialise(2, 2, xmlState.get(), true);
+			deviceManager.initialise(MAX_CHANNELS, MAX_CHANNELS, xmlState.get(), true);
 			DBG("✅ Audio device settings restored from file");
 		}
 		else

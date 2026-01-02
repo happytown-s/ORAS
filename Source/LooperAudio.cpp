@@ -31,12 +31,16 @@ void LooperAudio::processBlock(juce::AudioBuffer<float>& output,
     mixTracksToOutput(output);
 
     // 入力音をモニター出力
-    const int numChannels = juce::jmin(input.getNumChannels(), output.getNumChannels());
+    const int numInChannels = input.getNumChannels();
+    const int numOutChannels = output.getNumChannels();
     const int numSamples = input.getNumSamples();
 
-    for (int ch = 0; ch < numChannels; ++ch)
+    if (numInChannels > 0)
     {
-        output.addFrom(ch, 0, input, ch, 0, numSamples);
+        for (int ch = 0; ch < numOutChannels; ++ch)
+        {
+            output.addFrom(ch, 0, input, ch % numInChannels, 0, numSamples);
+        }
     }
     
     currentSamplePosition += numSamples;
@@ -358,7 +362,7 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             continue;
         }
 
-        const int numChannels = juce::jmin(output.getNumChannels(), track.buffer.getNumChannels());
+        const int outChannels = output.getNumChannels();
         
         const int loopLength = (masterLoopLength > 0)
             ? masterLoopLength
@@ -496,9 +500,9 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             track.fx.reverb.process(context);
         
         // Add FX-processed track to final output
-        for (int ch = 0; ch < numChannels; ++ch)
+        for (int ch = 0; ch < outChannels; ++ch)
         {
-            output.addFrom(ch, 0, trackBuffer, ch, 0, numSamples);
+            output.addFrom(ch, 0, trackBuffer, ch % 2, 0, numSamples);
         }
 
         // --- Visualization Monitoring ---

@@ -215,7 +215,7 @@ public:
         
         audioSelector.reset(new juce::AudioDeviceSelectorComponent(dm,
                                                                    0, MAX_CHANNELS,
-                                                                   0, 2,
+                                                                   0, MAX_CHANNELS,
                                                                    false, false,
                                                                    true, true));
         audioSelector->setLookAndFeel(&darkLAF);
