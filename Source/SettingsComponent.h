@@ -58,6 +58,13 @@ public:
         addAndMakeVisible(linkBtn);
     }
     
+    void setNames(const juce::String& lName, const juce::String& rName)
+    {
+        leftName = lName;
+        rightName = rName;
+        repaint();
+    }
+    
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().reduced(2);
@@ -67,24 +74,29 @@ public:
         g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
         
         int halfWidth = getWidth() / 2;
-        int meterTop = 18;
+        int meterTop = 32; // メーター位置を下げる
         int meterBottom = getHeight() - 52;
         int meterHeight = meterBottom - meterTop;
         
         // 左チャンネル
-        drawChannel(g, leftIndex, 4, meterTop, halfWidth - 6, meterHeight);
+        drawChannel(g, leftIndex, leftName, 4, meterTop, halfWidth - 6, meterHeight);
         
         // 右チャンネル（存在する場合）
         if (hasRightChannel)
-            drawChannel(g, rightIndex, halfWidth + 2, meterTop, halfWidth - 6, meterHeight);
+            drawChannel(g, rightIndex, rightName, halfWidth + 2, meterTop, halfWidth - 6, meterHeight);
     }
     
-    void drawChannel(juce::Graphics& g, int chIndex, int x, int y, int w, int h)
+    void drawChannel(juce::Graphics& g, int chIndex, const juce::String& name, int x, int y, int w, int h)
     {
+        // デバイス名
+        g.setColour(juce::Colours::grey);
+        g.setFont(10.0f);
+        g.drawText(name, x, 4, w, 12, juce::Justification::centred);
+
         // チャンネル番号
         g.setColour(ThemeColours::Silver);
         g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-        g.drawText(juce::String(chIndex + 1), x, 2, w, 14, juce::Justification::centred);
+        g.drawText(juce::String(chIndex + 1), x, 16, w, 14, juce::Justification::centred);
         
         // メーター背景
         juce::Rectangle<int> meterArea(x + 4, y, w - 8, h);
@@ -129,6 +141,7 @@ private:
     int leftIndex;
     int rightIndex;
     bool hasRightChannel = false;
+    juce::String leftName, rightName;
     InputManager& inputManager;
     juce::TextButton leftActiveBtn;
     juce::TextButton rightActiveBtn;
@@ -143,7 +156,7 @@ class ChannelPairGridContainer : public juce::Component
 public:
     ChannelPairGridContainer(InputManager& im) : inputManager(im) {}
     
-    void refresh()
+    void refresh(const juce::StringArray& channelNames)
     {
         cards.clear();
         int numCh = inputManager.getNumChannels();
@@ -152,6 +165,12 @@ public:
         for (int i = 0; i < numPairs; ++i)
         {
             auto card = std::make_unique<ChannelPairCard>(i, inputManager);
+            
+            // 名前を設定
+            juce::String lName = (i * 2 < channelNames.size()) ? channelNames[i * 2] : "";
+            juce::String rName = (i * 2 + 1 < channelNames.size()) ? channelNames[i * 2 + 1] : "";
+            card->setNames(lName, rName);
+            
             addAndMakeVisible(*card);
             cards.add(std::move(card));
         }
@@ -362,7 +381,19 @@ public:
             if (forceRefresh || inputManager.getNumChannels() != numInputChannels)
             {
                 inputManager.setNumChannels(numInputChannels);
-                channelPairGrid.refresh();
+                
+                // アクティブなチャンネルの名前リストを生成
+                juce::StringArray activeNames;
+                auto allNames = device->getInputChannelNames();
+                auto activeBits = device->getActiveInputChannels();
+                
+                for (int i = 0; i < allNames.size(); ++i)
+                {
+                    if (activeBits[i])
+                        activeNames.add(allNames[i]);
+                }
+                
+                channelPairGrid.refresh(activeNames);
             }
         }
     }
