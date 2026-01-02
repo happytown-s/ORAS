@@ -25,6 +25,8 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
         slotButtons[i].setClickingTogglesState(true);
         slotButtons[i].setLookAndFeel(&slotLnF);
         slotButtons[i].setRadioGroupId(1);  // ラジオボタングループ（1つだけ選択可能）
+        
+        // 左クリック: 選択 + 空スロットならメニュー表示
         slotButtons[i].onClick = [this, i]() {
             selectedSlotIndex = i;
             // 他のスロットボタンの選択状態をクリア
@@ -38,6 +40,11 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
             updateSliderVisibility();
             repaint();
         };
+        
+        // 右クリック: 常にメニュー表示（エフェクト変更・クリア用）
+        slotButtons[i].setTriggeredOnMouseDown(false);
+        slotButtons[i].addMouseListener(this, false);  // FXPanelでマウスイベントを受け取る
+        
         addAndMakeVisible(slotButtons[i]);
     }
     addAndMakeVisible(visualizer);
@@ -456,15 +463,35 @@ void FXPanel::resized()
 
 void FXPanel::mouseDown(const juce::MouseEvent& e)
 {
-    auto area = getLocalBounds();
-    area.removeFromTop(30);  // タイトル
-    area.reduce(10, 5);
+    // スロットボタンからの右クリックを検出
+    for (int i = 0; i < 4; ++i)
+    {
+        if (e.eventComponent == &slotButtons[i])
+        {
+            if (e.mods.isPopupMenu())
+            {
+                // 右クリック: スロットを選択してメニュー表示
+                selectedSlotIndex = i;
+                for (int j = 0; j < 4; ++j)
+                    slotButtons[j].setToggleState(j == i, juce::dontSendNotification);
+                updateSliderVisibility();
+                repaint();
+                showEffectMenu(i);
+                return;
+            }
+        }
+    }
     
-    auto leftCol = area.removeFromLeft(static_cast<int>(area.getWidth() * 0.20f));
-    int slotHeight = 45;
-    int slotSpacing = 4;
+    // 従来のパネル領域クリック処理（フォールバック）
+    auto fullArea = getLocalBounds().reduced(10);
+    fullArea.removeFromTop(40); // Title
+    auto leftCol = fullArea.removeFromLeft(fullArea.getWidth() * 0.25f);
     
-    for(int i=0; i<4; ++i)
+    // Slots Layout
+    int slotHeight = 50;
+    int slotSpacing = 10;
+    
+    for(int i = 0; i < 4; ++i)
     {
         auto slotRect = leftCol.removeFromTop(slotHeight);
         leftCol.removeFromTop(slotSpacing);

@@ -44,3 +44,15 @@
 1. アプリを起動し、音声入力でトリガーを発火させる。
 2. 音を止め、無音が続いた後に再度音を鳴らし、トリガーが再発火することを確認。
 3. 録音完了後にループ再生を開始し、頭にギャップがないことを確認。
+
+---
+
+## 追加修正: 録音中の鎮火抑制
+
+### 問題
+録音中に一瞬の無音があると鎮火してしまい、意図しないトリガー再発火の可能性があった。
+
+### 修正
+- `InputManager.h`: `recordingActive` フラグと `setRecordingActive()` メソッドを追加。
+- `InputManager.cpp`: PreRoll リセット時に `!recordingActive` をチェック。
+- `MainComponent.cpp`: 録音開始時に `setRecordingActive(true)`、録音停止時に `setRecordingActive(false)` を呼び出し。
