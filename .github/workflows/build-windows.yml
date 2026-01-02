@@ -1,0 +1,48 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Cache JUCE
+      id: cache-juce
+      uses: actions/cache@v4
+      with:
+        path: JUCE
+        key: juce-7.0.9
+    
+    - name: Download JUCE
+      if: steps.cache-juce.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-windows.zip" -OutFile "juce.zip"
+        Expand-Archive -Path "juce.zip" -DestinationPath "."
+        Rename-Item -Path "JUCE" -NewName "JUCE_temp" -ErrorAction SilentlyContinue
+        Move-Item -Path "juce-7.0.9" -Destination "JUCE" -ErrorAction SilentlyContinue
+        if (Test-Path "JUCE_temp") { Remove-Item -Path "JUCE_temp" -Recurse -Force }
+    
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCI_BUILD=ON
+    
+    - name: Build
+      run: cmake --build build --config Release
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: SAROS-Windows
+        path: build/SAROSApp/Release/*.exe
+        if-no-files-found: warn

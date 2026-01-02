@@ -1,11 +1,25 @@
 cmake_minimum_required(VERSION 3.15)
 project(SAROS VERSION 1.0.0)
 
-# 🍏 Apple Silicon 向けビルド設定
-set(CMAKE_OSX_ARCHITECTURES "arm64")
+# 🍏 Apple Silicon 向けビルド設定 (macOSのみ)
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64")
+endif()
 
-# JUCEの実体フォルダを指定
-set(JUCE_DIR "/Users/mtsh/JUCE")
+# JUCEのパス設定
+# CI環境では -DCI_BUILD=ON を指定してプロジェクトルートのJUCEを使用
+# ローカル環境ではユーザーのJUCEパスを使用
+option(CI_BUILD "CI環境でのビルド" OFF)
+
+if(CI_BUILD)
+    # CI環境: プロジェクトルートにダウンロードされたJUCEを使用
+    set(JUCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/JUCE")
+else()
+    # ローカル環境: ユーザーのJUCEパスを使用
+    set(JUCE_DIR "/Users/mtsh/JUCE")
+endif()
+
+message(STATUS "Using JUCE from: ${JUCE_DIR}")
 
 add_subdirectory(${JUCE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/JUCE_build")
 
