@@ -181,9 +181,11 @@ public:
     {
         if (cards.isEmpty()) return;
         
-        int cardWidth = 80;   // 2ch分の幅
-        int cardHeight = 130; // メーターを縦長に
-        int cols = juce::jmax(1, getWidth() / cardWidth);
+        // 1行に4ペア（8チャンネル）を表示し、全幅を使う
+        int cols = 4; 
+        int cardWidth = getWidth() / cols;
+        int cardHeight = 130;
+        
         int numRows = (cards.size() + cols - 1) / cols;
         
         for (int i = 0; i < cards.size(); ++i)
@@ -436,7 +438,7 @@ public:
         tabs.addTab("Trigger", juce::Colour(0xff1a1a1a), new TriggerTabContent(dm, im), true);
         
         addAndMakeVisible(tabs);
-        setSize(650, 600);
+        setSize(750, 850);
     }
     
     ~SettingsComponent() override
