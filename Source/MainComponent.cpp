@@ -133,6 +133,14 @@ MainComponent::MainComponent()
 		looper.allClear();
         visualizer.clear(); // Reset visualizer
 		
+		// 🎛 FXも全リセット
+		for (int track = 1; track <= 8; ++track) {
+		    looper.setTrackFilterEnabled(track, false);
+		    looper.setTrackDelayEnabled(track, false);
+		    looper.setTrackReverbEnabled(track, false);
+		    looper.setTrackBeatRepeatActive(track, false);
+		}
+		
 		// UI状態を完全にリセット
 		isStandbyMode = false;
 		selectedTrackId = 0;
