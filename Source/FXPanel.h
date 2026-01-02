@@ -14,11 +14,12 @@
 #include "PlanetKnobLookAndFeel.h"
 #include "LooperAudio.h"
 #include "FXSlotButtonLookAndFeel.h"
+#include "FilterSpectrumVisualizer.h"
 
 // =====================================================
 // 🎛 FXPanel クラス宣言
 // =====================================================
-class FXPanel: public juce::Component
+class FXPanel: public juce::Component, public juce::Timer
 {
 public:
     enum class EffectType {
@@ -46,6 +47,8 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
     
+    void timerCallback() override;
+
     void mouseDown(const juce::MouseEvent& e) override;
 
 private:
@@ -65,6 +68,9 @@ private:
     juce::TextButton trackButtons[8];
     
     // Sliders (All exist, visibility toggled)
+    
+    FilterSpectrumVisualizer visualizer;
+
     // Filter
     juce::Slider filterSlider;
     juce::Label filterLabel;

@@ -53,6 +53,7 @@ set(HEADER_FILES
     Source/MainComponent.h
     Source/RoundButtonLookAndFeel.h
     Source/CircularVisualizer.h
+    Source/FilterSpectrumVisualizer.h
 )
 
 target_sources(ORAS PRIVATE ${SOURCE_FILES} ${HEADER_FILES})

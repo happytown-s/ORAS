@@ -40,6 +40,9 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
         };
         addAndMakeVisible(slotButtons[i]);
     }
+    addAndMakeVisible(visualizer);
+    startTimer(30);
+
     slotButtons[0].setToggleState(true, juce::dontSendNotification);  // 最初のスロットを選択
     
     // トラック選択ボタンは削除（MainComponentのトラックボタンを使用）
@@ -56,7 +59,9 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
             return juce::String(static_cast<int>(value)) + "Hz";
     };
     filterSlider.onValueChange = [this]() {
-        looper.setTrackFilterCutoff(currentTrackId, (float)filterSlider.getValue());
+        float freq = (float)filterSlider.getValue();
+        looper.setTrackFilterCutoff(currentTrackId, freq);
+        visualizer.setFilterParameters(freq, (float)filterResSlider.getValue(), filterTypeButton.getToggleState() ? 1 : 0);
     };
     
     setupSlider(filterResSlider, filterResLabel, "RES", "IceBlue"); 
@@ -66,7 +71,9 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
         return juce::String(value, 1);  // Q値は小数点1桁
     };
     filterResSlider.onValueChange = [this]() {
-        looper.setTrackFilterResonance(currentTrackId, (float)filterResSlider.getValue());
+        float res = (float)filterResSlider.getValue();
+        looper.setTrackFilterResonance(currentTrackId, res);
+        visualizer.setFilterParameters((float)filterSlider.getValue(), res, filterTypeButton.getToggleState() ? 1 : 0);
     };
     
     addChildComponent(filterTypeButton);
@@ -77,6 +84,7 @@ FXPanel::FXPanel(LooperAudio& looperRef) : looper(looperRef)
         bool isHPF = filterTypeButton.getToggleState();
         filterTypeButton.setButtonText(isHPF ? "HPF" : "LPF");
         looper.setTrackFilterType(currentTrackId, isHPF ? 1 : 0);
+        visualizer.setFilterParameters((float)filterSlider.getValue(), (float)filterResSlider.getValue(), isHPF ? 1 : 0);
     };
 
     // --- COMP ---
@@ -245,8 +253,9 @@ void FXPanel::setupSlider(juce::Slider& slider, juce::Label& label, const juce::
 void FXPanel::setTargetTrackId(int trackId)
 {
     currentTrackId = trackId;
+    looper.setMonitorTrackId(trackId); // Monitor audio for this track
     
-    // 対応するトラックボタンを選択状態にする
+    // Update button states
     for (int i = 0; i < 8; ++i)
         trackButtons[i].setToggleState((i + 1) == trackId, juce::dontSendNotification);
     
@@ -255,36 +264,37 @@ void FXPanel::setTargetTrackId(int trackId)
 
 void FXPanel::updateSliderVisibility()
 {
-    // Hide all
+    EffectType type = slots[selectedSlotIndex].type;
+    bool isActive = (type != EffectType::None) && (!slots[selectedSlotIndex].isBypassed);
+    if (slots[selectedSlotIndex].type == EffectType::None) isActive = false;
+
+    // Hide all first
     auto hide = [&](juce::Component& c) { c.setVisible(false); };
     hide(filterSlider); hide(filterLabel);
     hide(filterResSlider); hide(filterResLabel);
     hide(filterTypeButton);
-    
     hide(compThreshSlider); hide(compThreshLabel);
     hide(compRatioSlider); hide(compRatioLabel);
-    
     hide(delaySlider); hide(delayLabel);
     hide(delayFeedbackSlider); hide(delayFeedbackLabel);
     hide(delayMixSlider); hide(delayMixLabel);
-    
     hide(reverbSlider); hide(reverbLabel);
     hide(reverbDecaySlider); hide(reverbDecayLabel);
-    
     hide(repeatActiveButton);
     hide(repeatDivSlider); hide(repeatDivLabel);
     hide(repeatThreshSlider); hide(repeatThreshLabel);
+    
+    visualizer.setVisible(false);
 
-    if (selectedSlotIndex < 0 || selectedSlotIndex >= 4) return;
-    
-    EffectSlot& slot = slots[selectedSlotIndex];
-    
-    switch (slot.type)
+    if (!isActive) { resized(); return; }
+
+    switch (type)
     {
         case EffectType::Filter:
             filterSlider.setVisible(true); filterLabel.setVisible(true);
             filterResSlider.setVisible(true); filterResLabel.setVisible(true);
             filterTypeButton.setVisible(true);
+            visualizer.setVisible(true);
             break;
         case EffectType::Compressor:
             compThreshSlider.setVisible(true); compThreshLabel.setVisible(true);
@@ -304,8 +314,7 @@ void FXPanel::updateSliderVisibility()
             repeatDivSlider.setVisible(true); repeatDivLabel.setVisible(true);
             repeatThreshSlider.setVisible(true); repeatThreshLabel.setVisible(true);
             break;
-        default:
-            break;
+        default: break;
     }
     resized(); 
 }
@@ -410,7 +419,18 @@ void FXPanel::resized()
 
     // FILTER
     if(filterSlider.isVisible()) {
+        // Visualizer at the top
+        int vizHeight = 120;
+        visualizer.setBounds(rightArea.getX(), startY, rightArea.getWidth(), vizHeight);
+        
+        // Controls below visualizer
+        int originalStartY = startY;
+        startY += vizHeight + 20; 
+        
         placeControls({ {&filterSlider, &filterLabel}, {&filterResSlider, &filterResLabel} }, &filterTypeButton);
+        
+        // Reset startY for next calls (though unexpected)
+        startY = originalStartY;
     }
     
     // COMP
@@ -532,4 +552,14 @@ void FXPanel::showEffectMenu(int slotIndex)
         updateSliderVisibility();
         repaint();
     });
+}
+
+void FXPanel::timerCallback()
+{
+    if (visualizer.isVisible())
+    {
+        juce::AudioBuffer<float> buffer(1, 1024); // Temp buffer
+        looper.popMonitorSamples(buffer);
+        visualizer.pushBuffer(buffer);
+    }
 }

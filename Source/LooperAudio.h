@@ -170,6 +170,11 @@ public:
     void setTrackFilterEnabled(int trackId, bool enabled);
     void setTrackDelayEnabled(int trackId, bool enabled);
     void setTrackReverbEnabled(int trackId, bool enabled);
+
+    // ================= Monitor / Visualization =================
+    void setMonitorTrackId(int trackId);
+    int getMonitorTrackId() const { return monitorTrackId.load(); }
+    void popMonitorSamples(juce::AudioBuffer<float>& destBuffer);
 	// ビジュアライザ用
 	const juce::AudioBuffer<float>* getTrackBuffer(int trackId) const
 	{
@@ -241,6 +246,12 @@ private:
 	void recordIntoTracks(const juce::AudioBuffer<float>& input);
 	void mixTracksToOutput(juce::AudioBuffer<float>& output);
 
+    // Monitoring
+    std::atomic<int> monitorTrackId { -1 };
+    
+    static constexpr int monitorFifoSize = 4096;
+    juce::AbstractFifo monitorFifo { monitorFifoSize };
+    std::vector<float> monitorFifoBuffer;
 
 };
 

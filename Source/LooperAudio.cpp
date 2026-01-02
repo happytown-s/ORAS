@@ -4,6 +4,7 @@
 LooperAudio::LooperAudio(double sr, int max)
     : sampleRate(sr), maxSamples(max)
 {
+    monitorFifoBuffer.resize(monitorFifoSize, 0.0f);
 }
 
 LooperAudio::~LooperAudio()
@@ -500,6 +501,27 @@ void LooperAudio::mixTracksToOutput(juce::AudioBuffer<float>& output)
             output.addFrom(ch, 0, trackBuffer, ch, 0, numSamples);
         }
 
+        // --- Visualization Monitoring ---
+        if (id == monitorTrackId.load())
+        {
+            // モノラルミックスしてFIFOへ
+            int start1, size1, start2, size2;
+            monitorFifo.prepareToWrite(numSamples, start1, size1, start2, size2);
+            
+            if (size1 > 0)
+            {
+                // Channel 0 only for simplified viz
+                for (int i = 0; i < size1; ++i)
+                    monitorFifoBuffer[start1 + i] = trackBuffer.getSample(0, i);
+            }
+            if (size2 > 0)
+            {
+                for (int i = 0; i < size2; ++i)
+                    monitorFifoBuffer[start2 + i] = trackBuffer.getSample(0, size1 + i);
+            }
+            monitorFifo.finishedWrite(size1 + size2);
+        }
+
         // 🧮 RMS計算
         const int rmsWindow = 256;
         int rmsStart = (readPos - rmsWindow + loopLength) % loopLength; 
@@ -796,6 +818,35 @@ void LooperAudio::setTrackBeatRepeatThresh(int trackId, float thresh)
 {
     if (auto it = tracks.find(trackId); it != tracks.end())
         it->second.fx.beatRepeat.threshold = thresh;
+}
+
+// ================= Monitor / Visualization =================
+
+void LooperAudio::setMonitorTrackId(int trackId)
+{
+    monitorTrackId.store(trackId);
+}
+
+void LooperAudio::popMonitorSamples(juce::AudioBuffer<float>& destBuffer)
+{
+    const int numSamples = destBuffer.getNumSamples();
+    int start1, size1, start2, size2;
+    monitorFifo.prepareToRead(numSamples, start1, size1, start2, size2);
+    
+    if (size1 > 0)
+        destBuffer.copyFrom(0, 0, monitorFifoBuffer.data() + start1, size1);
+    
+    if (size2 > 0)
+        destBuffer.copyFrom(0, size1, monitorFifoBuffer.data() + start2, size2);
+        
+    monitorFifo.finishedRead(size1 + size2);
+    
+    // データが足りない場合はゼロ埋め（または前回の値を維持するか、ここでゼロクリアするか）
+    // AbstractFifoは読み込めた分だけ返すので、足りない分はクリアしておく方が安全
+    if (size1 + size2 < numSamples)
+    {
+        destBuffer.clear(size1 + size2, numSamples - (size1 + size2));
+    }
 }
 
 // ================= FX Enable/Disable =================
