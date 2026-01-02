@@ -665,14 +665,13 @@ private:
         {
             float dist = std::sqrt(particles[i].x * particles[i].x + particles[i].y * particles[i].y);
             
+            float totalForce = (attractStrength * 0.015f) + currentAdditionalForce;
+            
             if (dist > 1.0f)
             {
                 // 中心に向かうベクトルを計算
                 float dirX = -particles[i].x / dist;
                 float dirY = -particles[i].y / dist;
-                
-                // 力の合成: 通常引力(正) + 追加力(正or負)
-                float totalForce = (attractStrength * 0.015f) + currentAdditionalForce;
                 
                 particles[i].vx += dirX * totalForce;
                 particles[i].vy += dirY * totalForce;
@@ -694,9 +693,9 @@ private:
                 particles[i].vy *= 0.99f;
             }
             
-            // 収束モードの判定をより厳密に: 実際に引力が働いているときのみ
-            // currentAdditionalForce > 0 なら実際に中心へ引っ張っている
-            bool isActuallyAttracting = (currentAdditionalForce > 0.01f);
+            // 収束モードの判定: totalForce が正で実際に引力が働いているときのみ
+            // かつ、ドラッグ操作で加速されていないとき
+            bool isActuallyAttracting = (totalForce > 0.01f) && (currentAdditionalForce > -0.01f);
             
             if (isActuallyAttracting)
             {
