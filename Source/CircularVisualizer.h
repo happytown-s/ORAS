@@ -691,27 +691,16 @@ private:
             
             if (!isDiffusing)
             {
-                // 収束モード
-                if (dragVelocityRemaining > 5.0f) // 高速収束中
+                // 収束モード (高速・低速問わず)
+                // 中心を通り過ぎて外へ向かっているかチェック (内積 > 0)
+                bool movingAway = (particles[i].x * particles[i].vx + particles[i].y * particles[i].vy) > 0;
+                
+                // 1. 外に向かっていたら距離に関係なく即座にリセット (散らばり完全防止)
+                // 2. まだ中心に向かっていても、極端に近い場合は吸い込まれたとみなす
+                if (movingAway || dist < 20.0f)
                 {
-                    // 中心を通り過ぎて外へ向かっているかチェック (内積 > 0)
-                    bool movingAway = (particles[i].x * particles[i].vx + particles[i].y * particles[i].vy) > 0;
-                    
-                    // 外に向かっていたら距離に関係なく即座にリセット (散らばり完全防止)
-                    // または極端に中心に近い場合もリセット
-                    if (movingAway || dist < 30.0f)
-                    {
-                        resetParticle(i);
-                        continue; 
-                    }
-                }
-                else // 通常速度
-                {
-                    // 中心付近でフェードアウト
-                    if (dist < 5.0f) {
-                        particles[i].life -= 0.1f;
-                        particles[i].alpha *= 0.9f;
-                    }
+                    resetParticle(i);
+                    continue; 
                 }
             }
             
