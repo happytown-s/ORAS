@@ -241,7 +241,9 @@ public:
         g.fillEllipse(bounds.withSizeKeepingCentre(radius * 2.0f, radius * 2.0f));
 
         // --- 1. Particle Field (Stars) ---
-        drawParticles(g, centre, radius);
+        // 画面全体に描画するため、大きな半径を渡す
+        float maxParticleDist = juce::jmax(bounds.getWidth(), bounds.getHeight()) * 0.8f;
+        drawParticles(g, centre, maxParticleDist);
 
         // --- 2. Pulsating Core ---
         float bassLevel = juce::jlimit(0.0f, 1.0f, scopeData[0] * 0.5f + scopeData[1] * 0.3f + scopeData[2] * 0.2f);
@@ -592,20 +594,26 @@ private:
         float size;
         float life;
     };
-    static constexpr int numParticles = 40;
+    static constexpr int numParticles = 120; // 画面全体にするので数を増やす (40 -> 120)
     Particle particles[numParticles];
 
     void resetParticle(int i)
     {
         // 外周からスタートして中心に向かう
+        // 画面全体に広げるため、コンポーネントのサイズを使用
+        float radiusMax = (float)juce::jmax(getWidth(), getHeight()) * 0.7f;
+        if (radiusMax < 100.0f) radiusMax = 400.0f; // 初期化時などサイズ未定時のフォールバック
+
         float angle = juce::Random::getSystemRandom().nextFloat() * juce::MathConstants<float>::twoPi;
-        float startRadius = 80.0f + juce::Random::getSystemRandom().nextFloat() * 40.0f; // 外周からスタート
+        // 半径もランダムだが、遠くから来るように少しバイアス
+        float startRadius = radiusMax * (0.5f + juce::Random::getSystemRandom().nextFloat() * 0.5f); 
+        
         particles[i].x = std::cos(angle) * startRadius;
         particles[i].y = std::sin(angle) * startRadius;
         particles[i].vx = 0; // 速度は updateParticles で計算
         particles[i].vy = 0;
         particles[i].alpha = 0.3f + juce::Random::getSystemRandom().nextFloat() * 0.5f;
-        particles[i].size = 1.0f + juce::Random::getSystemRandom().nextFloat() * 2.0f;
+        particles[i].size = 1.0f + juce::Random::getSystemRandom().nextFloat() * 2.5f; // 少しサイズばらつき大きく
         particles[i].life = 1.0f;
     }
 
@@ -624,17 +632,17 @@ private:
                 float dirX = -particles[i].x / dist;
                 float dirY = -particles[i].y / dist;
                 
-                // 優しく加速（イージング効果）
-                particles[i].vx += dirX * attractStrength * 0.1f;
-                particles[i].vy += dirY * attractStrength * 0.1f;
+                // 優しく加速（イージング効果）- ゆっくりにするため係数を大幅に下げる
+                particles[i].vx += dirX * attractStrength * 0.015f; // 0.1 -> 0.015
+                particles[i].vy += dirY * attractStrength * 0.015f;
                 
                 // 速度を適用
                 particles[i].x += particles[i].vx;
                 particles[i].y += particles[i].vy;
                 
-                // 減衰（軌道を柔らかく）
-                particles[i].vx *= 0.98f;
-                particles[i].vy *= 0.98f;
+                // 減衰（慣性を残しつつゆっくり）
+                particles[i].vx *= 0.99f; // 0.98 -> 0.99 (抵抗を減らして滑らかに流す)
+                particles[i].vy *= 0.99f;
             }
             
             // 中心に到達したらリセット
