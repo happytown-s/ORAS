@@ -704,9 +704,20 @@ private:
                     continue; 
                 }
             }
+            else
+            {
+                // 拡散モード: 外へ飛んでいくのを許容しつつ、徐々にフェードアウト
+                particles[i].life -= 0.005f; // ゆっくり消える
+                particles[i].alpha *= 0.995f;
+            }
             
             // 画面外(遠すぎ) or 寿命尽きたらリセット
-            if (particles[i].life <= 0 || (!isDiffusing && dist < 2.0f) || dist > juce::jmax(getWidth(), getHeight()) * 1.5f)
+            // 拡散モードでは画面外判定を緩くする（3倍まで許容）
+            float outOfBoundsRadius = isDiffusing ? 
+                juce::jmax(getWidth(), getHeight()) * 3.0f : 
+                juce::jmax(getWidth(), getHeight()) * 1.5f;
+            
+            if (particles[i].life <= 0 || (!isDiffusing && dist < 2.0f) || dist > outOfBoundsRadius)
                 resetParticle(i);
         }
         
