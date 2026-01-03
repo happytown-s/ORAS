@@ -19,6 +19,11 @@ MidiTabContent::MidiTabContent(MidiLearnManager& manager)
     deviceHeader.setColour(juce::Label::textColourId, ThemeColours::Silver);
     addAndMakeVisible(deviceHeader);
     
+    // Viewportの設定
+    deviceViewport.setViewedComponent(&deviceListContainer, false);
+    deviceViewport.setScrollBarsShown(true, false); // 垂直スクロールのみ
+    addAndMakeVisible(deviceViewport);
+    
     updateDeviceList();
     
     // ========== MIDI Learnセクション (削除) ==========
@@ -99,16 +104,18 @@ void MidiTabContent::resized()
     
     // MIDIデバイスセクション
     deviceHeader.setBounds(area.removeFromTop(30));
-    auto deviceArea = area.removeFromTop(80);
+    deviceViewport.setBounds(area.removeFromTop(120)); // 高さを固定または可変に
     
+    // Viewport内のコンテンツ配置
     int y = 0;
     for (int i = 0; i < deviceToggles.size(); ++i)
     {
-        auto row = deviceArea.removeFromTop(25);
-        deviceToggles[i]->setBounds(row.removeFromLeft(150));
-        deviceLabels[i]->setBounds(row.removeFromLeft(150));
+        deviceToggles[i]->setBounds(0, y, 150, 25);
+        deviceLabels[i]->setBounds(150, y, 150, 25);
         y += 25;
     }
+    // コンテナのサイズを更新
+    deviceListContainer.setSize(deviceViewport.getWidth() - 15, y); // スクロールバー分を引く
     
     area.removeFromTop(10);
     
@@ -272,13 +279,13 @@ void MidiTabContent::updateDeviceList()
             {
                 midiManager.enableMidiDevice(deviceName, toggle->getToggleState());
             };
-            addAndMakeVisible(toggle);
+            deviceListContainer.addAndMakeVisible(toggle); // Containerに追加
             deviceToggles.add(toggle);
             
             auto* label = new juce::Label();
             label->setText(deviceName, juce::dontSendNotification);
             label->setColour(juce::Label::textColourId, ThemeColours::Silver);
-            addAndMakeVisible(label);
+            deviceListContainer.addAndMakeVisible(label); // Containerに追加
             deviceLabels.add(label);
         }
         

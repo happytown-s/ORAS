@@ -47,6 +47,8 @@ private:
     
     // MIDIデバイスセクション
     juce::Label deviceHeader;
+    juce::Viewport deviceViewport;
+    juce::Component deviceListContainer;
     juce::OwnedArray<juce::ToggleButton> deviceToggles;
     juce::OwnedArray<juce::Label> deviceLabels;
     
