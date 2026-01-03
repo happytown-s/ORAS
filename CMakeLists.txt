@@ -49,6 +49,8 @@ set(SOURCE_FILES
     Source/LooperTrackUi.cpp
     Source/FXPanel.cpp
     Source/PlanetKnobLookAndFeel.cpp
+    Source/MidiLearnManager.cpp
+    Source/MidiTabContent.cpp
 )
 
 set(HEADER_FILES
@@ -68,6 +70,9 @@ set(HEADER_FILES
     Source/RoundButtonLookAndFeel.h
     Source/CircularVisualizer.h
     Source/FilterSpectrumVisualizer.h
+    Source/MidiMapping.h
+    Source/MidiLearnManager.h
+    Source/MidiTabContent.h
 )
 
 
@@ -85,6 +90,7 @@ target_link_libraries(SAROS PRIVATE
     juce::juce_gui_extra
     juce::juce_audio_basics
     juce::juce_audio_utils
+    juce::juce_audio_devices
     juce::juce_graphics
     juce::juce_dsp
     juce::juce_core

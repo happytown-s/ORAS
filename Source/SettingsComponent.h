@@ -3,6 +3,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "InputManager.h"
 #include "ThemeColours.h"
+#include "MidiTabContent.h"
 
 // =====================================================
 // チャンネルペアカード（2ch を1ペアとして管理）
@@ -422,8 +423,8 @@ private:
 class SettingsComponent : public juce::Component
 {
 public:
-    SettingsComponent(juce::AudioDeviceManager& dm, InputManager& im)
-        : tabs(juce::TabbedButtonBar::TabsAtTop)
+    SettingsComponent(juce::AudioDeviceManager& dm, InputManager& im, MidiLearnManager& midiMgr)
+        : tabs(juce::TabbedButtonBar::TabsAtTop), midiManager(midiMgr)
     {
         // ダークテーマ適用
         darkLAF.setColourScheme(juce::LookAndFeel_V4::getMidnightColourScheme());
@@ -436,6 +437,7 @@ public:
         // タブ追加
         tabs.addTab("Device", juce::Colour(0xff1a1a1a), new DeviceTabContent(dm), true);
         tabs.addTab("Trigger", juce::Colour(0xff1a1a1a), new TriggerTabContent(dm, im), true);
+        tabs.addTab("MIDI", juce::Colour(0xff1a1a1a), new MidiTabContent(midiMgr), true);
         
         addAndMakeVisible(tabs);
         setSize(750, 850);
@@ -454,6 +456,7 @@ public:
 private:
     juce::TabbedComponent tabs;
     juce::LookAndFeel_V4 darkLAF;
+    MidiLearnManager& midiManager;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SettingsComponent)
 };

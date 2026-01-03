@@ -2,6 +2,7 @@
 build/
 JUCE/
 Tests/
+Plan/
 *.jucer
 !*.jucer
 *.py

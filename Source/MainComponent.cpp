@@ -740,7 +740,7 @@ void MainComponent::trackClicked(LooperTrackUi* clickedTrack)
 
 void MainComponent::showDeviceSettings()
 {
-	auto* settingsComp = new SettingsComponent(deviceManager, inputTap.getManager());
+	auto* settingsComp = new SettingsComponent(deviceManager, inputTap.getManager(), midiLearnManager);
     settingsComp->setSize(550, 450);
 
 	juce::DialogWindow::LaunchOptions opts;

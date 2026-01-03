@@ -10,6 +10,7 @@
 #include "TransportPanel.h"
 #include "CircularVisualizer.h"
 #include "FXPanel.h"
+#include "MidiLearnManager.h"
 
 //==============================================================================
 // ルーパーアプリ本体
@@ -66,6 +67,9 @@ public juce::Timer
 	std::unique_ptr<juce::PropertiesFile> appProperties;
 	void saveAudioDeviceSettings();
 	void loadAudioDeviceSettings();
+	
+	// ===== MIDI Learn =====
+	MidiLearnManager midiLearnManager;
 
 	// ===== UI =====
 	CircularVisualizer visualizer;
