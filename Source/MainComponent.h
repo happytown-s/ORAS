@@ -43,6 +43,10 @@ public juce::Timer
 	void showDeviceSettings();
 	void updateStateVisual();
 	int getSelectedTrackId() const {return selectedTrackId;}
+	
+	// Auto-Arm 機能
+	int findNextEmptyTrack(int fromTrackId) const;
+	void updateNextTargetPreview();
 
 
 	private:
@@ -71,6 +75,11 @@ public juce::Timer
 	int selectedTrackId = 0;
 	std::atomic<bool> isStandbyMode { false };
     std::atomic<bool> forceRecordRequest { false };
+    
+    // Auto-Arm 機能
+    juce::ToggleButton autoArmButton;
+    bool isAutoArmEnabled = false;
+    int nextTargetTrackId = -1;
 
 
 	std::vector<std::unique_ptr<LooperTrackUi>> trackUIs;

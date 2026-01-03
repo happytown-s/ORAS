@@ -145,6 +145,11 @@ MainComponent::MainComponent()
 		isStandbyMode = false;
 		selectedTrackId = 0;
 		
+		// Auto-Arm もリセット
+		isAutoArmEnabled = false;
+		autoArmButton.setToggleState(false, juce::dontSendNotification);
+		nextTargetTrackId = -1;
+		
 		// 全トラックを初期状態に戻す
 		for (auto& t : trackUIs) {
 			t->setSelected(false);
@@ -267,6 +272,17 @@ MainComponent::MainComponent()
 
 
 	//ルーパーからのリスナーイベントを受け取る
+
+	// Auto-Arm ボタンの初期化
+	autoArmButton.setButtonText("AUTO-ARM");
+	autoArmButton.setClickingTogglesState(true);
+	autoArmButton.onClick = [this]()
+	{
+		isAutoArmEnabled = autoArmButton.getToggleState();
+		DBG("🔗 Auto-Arm " << (isAutoArmEnabled ? "ON" : "OFF"));
+		updateNextTargetPreview();
+	};
+	addAndMakeVisible(autoArmButton);
 	looper.addListener(this);
 
     // Initialize Global Stars
@@ -544,6 +560,12 @@ void MainComponent::paint(juce::Graphics& g)
 void MainComponent::resized() 
 {
 	auto area = getLocalBounds().reduced(15);
+	
+	// Auto-Arm ボタンをヘッダー部の右上に配置 (FXボタンの横)
+	int buttonWidth = 100;
+	int buttonHeight = 30;
+	int margin = 15;
+	autoArmButton.setBounds(getWidth() - buttonWidth - margin, 5, buttonWidth, buttonHeight);
 	
 // ⬇️ Top margin for layout (skip past the 40px header bar)
 	area.removeFromTop(30);
@@ -923,6 +945,33 @@ void MainComponent::onRecordingStopped(int trackID)
                                    looper.getTrackRecordStart(trackID),
                                    looper.getMasterStartSample());
         }
+
+        // 6. 🔗 Auto-Arm: 次の空きトラックを自動で待機状態に
+        if (isAutoArmEnabled)
+        {
+            int nextTrack = findNextEmptyTrack(trackID);
+            if (nextTrack != -1)
+            {
+                selectedTrackId = nextTrack;
+                selectedTrack = trackUIs[nextTrack - 1].get();
+                trackUIs[nextTrack - 1]->setSelected(true);
+                isStandbyMode = true;
+                trackUIs[nextTrack - 1]->setState(LooperTrackUi::TrackState::Standby);
+                nextTargetTrackId = findNextEmptyTrack(nextTrack);
+                DBG("🔗 Auto-Arm: トラック " << nextTrack << " を待機状態に");
+            }
+            else
+            {
+                isAutoArmEnabled = false;
+                autoArmButton.setToggleState(false, juce::dontSendNotification);
+                nextTargetTrackId = -1;
+                DBG("🔗 Auto-Arm: 空きトラックなし、自動終了");
+            }
+        }
+        else
+        {
+            nextTargetTrackId = -1;
+        }
     });
 }
 
@@ -999,4 +1048,37 @@ void MainComponent::loadAudioDeviceSettings()
             }
         }
 	}
+}
+// ===== Auto-Arm 機能 =====
+int MainComponent::findNextEmptyTrack(int fromTrackId) const
+{
+	const auto& tracks = looper.getTracks();
+	int maxTracks = 8;
+	
+	for (int i = fromTrackId + 1; i <= maxTracks; i++)
+	{
+		if (auto it = tracks.find(i); it == tracks.end() || it->second.recordLength == 0)
+		{
+			return i;
+		}
+	}
+	
+	return -1; // 空きトラックなし
+}
+
+void MainComponent::updateNextTargetPreview()
+{
+	if (!isAutoArmEnabled)
+	{
+		nextTargetTrackId = -1;
+		return;
+	}
+	
+	// 現在選択されているトラックから次を探す
+	int currentTrack = selectedTrackId;
+	if (currentTrack == 0 && selectedTrack != nullptr)
+		currentTrack = selectedTrack->getTrackId();
+	
+	nextTargetTrackId = findNextEmptyTrack(currentTrack);
+	repaint();
 }
