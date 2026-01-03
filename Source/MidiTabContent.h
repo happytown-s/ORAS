@@ -50,10 +50,8 @@ private:
     juce::OwnedArray<juce::ToggleButton> deviceToggles;
     juce::OwnedArray<juce::Label> deviceLabels;
     
-    // MIDI Learnセクション
-    juce::Label learnHeader;
-    juce::ToggleButton learnModeToggle;
-    juce::Label learnStatusLabel;
+    // MIDI Learnセクション (削除)
+    // Settings画面では行わずメイン画面で行うため削除
     
     // マッピング一覧セクション
     juce::Label mappingHeader;

@@ -21,24 +21,10 @@ MidiTabContent::MidiTabContent(MidiLearnManager& manager)
     
     updateDeviceList();
     
-    // ========== MIDI Learnセクション ==========
-    learnHeader.setText("MIDI Learn", juce::dontSendNotification);
-    learnHeader.setFont(juce::FontOptions(16.0f, juce::Font::bold));
-    learnHeader.setColour(juce::Label::textColourId, ThemeColours::Silver);
-    addAndMakeVisible(learnHeader);
+    // ========== MIDI Learnセクション (削除) ==========
+    // メイン画面で行うため削除
     
-    learnModeToggle.setButtonText("Enable MIDI Learn Mode");
-    learnModeToggle.setClickingTogglesState(true);
-    learnModeToggle.setColour(juce::TextButton::buttonOnColourId, ThemeColours::NeonMagenta);
-    learnModeToggle.onClick = [this]()
-    {
-        midiManager.setLearnMode(learnModeToggle.getToggleState());
-    };
-    addAndMakeVisible(learnModeToggle);
-    
-    learnStatusLabel.setText("Status: Ready", juce::dontSendNotification);
-    learnStatusLabel.setColour(juce::Label::textColourId, ThemeColours::Silver);
-    addAndMakeVisible(learnStatusLabel);
+    // ========== マッピング一覧セクション ==========
     
     // ========== マッピング一覧セクション ==========
     mappingHeader.setText("MIDI Mappings", juce::dontSendNotification);
@@ -126,12 +112,11 @@ void MidiTabContent::resized()
     
     area.removeFromTop(10);
     
-    // MIDI Learnセクション
-    learnHeader.setBounds(area.removeFromTop(30));
-    learnModeToggle.setBounds(area.removeFromTop(30).reduced(3));
-    learnStatusLabel.setBounds(area.removeFromTop(25));
-    
     area.removeFromTop(10);
+    
+    // MIDI Learnセクション removed
+    
+    // マッピング一覧セクション
     
     // マッピング一覧セクション
     auto mappingRow = area.removeFromTop(30);
@@ -185,12 +170,7 @@ void MidiTabContent::midiValueReceived(const juce::String& controlId, float valu
 
 void MidiTabContent::midiLearnModeChanged(bool isActive)
 {
-    learnModeToggle.setToggleState(isActive, juce::dontSendNotification);
-    
-    if (isActive)
-        learnStatusLabel.setText("Status: Waiting for control selection...", juce::dontSendNotification);
-    else
-        learnStatusLabel.setText("Status: Ready", juce::dontSendNotification);
+    // Settings画面にはトグルがないので何もしない (メイン画面で管理)
 }
 
 void MidiTabContent::midiMessageReceived(const juce::String& description)
