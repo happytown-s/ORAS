@@ -1183,7 +1183,7 @@ void MainComponent::paintOverChildren(juce::Graphics& g)
 		return;
 
 	// トラック部分のハイライト
-	float alpha = 0.5f + 0.2f * std::sin(juce::Time::getMillisecondCounter() * 0.01f);
+	float alpha = juce::jlimit(0.0f, 1.0f, 0.5f + 0.2f * std::sin(juce::Time::getMillisecondCounter() * 0.01f));
 	
 	// --- Auto-Armボタンのハイライト ---
 	{

@@ -342,7 +342,7 @@ void TransportPanel::paintOverChildren(juce::Graphics& g)
 	std::vector<juce::TextButton*> buttons = { &recordButton, &playButton, &undoButton, &clearButton, &settingButton };
 	
 	// 点滅用アルファ値 (0.3 ~ 0.7)
-	float alpha = 0.5f + 0.2f * std::sin(juce::Time::getMillisecondCounter() * 0.01f);
+	float alpha = juce::jlimit(0.0f, 1.0f, 0.5f + 0.2f * std::sin(juce::Time::getMillisecondCounter() * 0.01f));
 	
 	for (auto* btn : buttons)
 	{

@@ -681,7 +681,7 @@ void FXPanel::paintOverChildren(juce::Graphics& g)
         &repeatDivSlider, &repeatThreshSlider
     };
     
-    float alpha = 0.5f + 0.2f * std::sin(juce::Time::getMillisecondCounter() * 0.01f);
+    float alpha = juce::jlimit(0.0f, 1.0f, 0.5f + 0.2f * std::sin(juce::Time::getMillisecondCounter() * 0.01f));
     
     for (auto* slider : sliders)
     {
