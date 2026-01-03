@@ -62,6 +62,10 @@ TransportPanel::TransportPanel(LooperAudio& looperRef)
 
 TransportPanel::~TransportPanel()
 {
+	// MIDIリスナー解除
+	if (midiManager != nullptr)
+		midiManager->removeListener(this);
+	
 	// LookAndFeelを解除
 	for (auto* btn : {&recordButton, &playButton, &undoButton, &clearButton, &settingButton})
 	{
@@ -130,6 +134,30 @@ void TransportPanel::resized()
 //===========================================================
 void TransportPanel::buttonClicked(juce::Button* button)
 {
+	// MIDI Learnモード時の処理
+	if (midiManager != nullptr && midiManager->isLearnModeActive())
+	{
+		juce::String controlId;
+		
+		if (button == &recordButton)
+			controlId = "transport_rec";
+		else if (button == &playButton)
+			controlId = "transport_play";
+		else if (button == &undoButton)
+			controlId = "transport_undo";
+		else if (button == &clearButton)
+			controlId = "transport_clear";
+		else if (button == &settingButton)
+			controlId = "transport_settings";
+		
+		if (controlId.isNotEmpty())
+		{
+			handleButtonClick(static_cast<juce::TextButton*>(button), controlId);
+			return;
+		}
+	}
+	
+	// 通常のボタン処理
 	if (button == &visualModeButton)
 	{
 		if (onToggleTracks) onToggleTracks();
@@ -227,4 +255,53 @@ void TransportPanel::setState(State newState)
 	}
     
 	repaint();
+}
+
+// =====================================================
+// MIDI Learn
+// =====================================================
+
+void TransportPanel::setMidiLearnManager(MidiLearnManager* manager)
+{
+	if (midiManager != nullptr)
+		midiManager->removeListener(this);
+	
+	midiManager = manager;
+	
+	if (midiManager != nullptr)
+		midiManager->addListener(this);
+}
+
+void TransportPanel::handleButtonClick(juce::TextButton* button, const juce::String& controlId)
+{
+	// MIDI Learnモードの場合、学習対象として設定
+	if (midiManager != nullptr && midiManager->isLearnModeActive())
+	{
+		midiManager->setLearnTarget(controlId);
+		DBG("MIDI Learn: 待機中 - " + controlId);
+		// MIDI信号を待つ（MidiLearnManagerが自動的に処理）
+		return;
+	}
+	
+	// 通常のボタン処理は既存のbuttonClickedで処理
+}
+
+void TransportPanel::midiValueReceived(const juce::String& controlId, float value)
+{
+	// MIDI信号を受信した時の処理
+	// Note: 値が0.5以上でトリガー（トグル動作）
+	if (value < 0.5f)
+		return;
+	
+	// controlIdに応じてボタンをトリガー
+	if (controlId == "transport_rec")
+		buttonClicked(&recordButton);
+	else if (controlId == "transport_play")
+		buttonClicked(&playButton);
+	else if (controlId == "transport_undo")
+		buttonClicked(&undoButton);
+	else if (controlId == "transport_clear")
+		buttonClicked(&clearButton);
+	else if (controlId == "transport_settings")
+		buttonClicked(&settingButton);
 }

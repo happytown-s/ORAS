@@ -333,6 +333,9 @@ MainComponent::MainComponent()
 	};
 	addAndMakeVisible(midiLearnButton);
 	
+	// TransportPanelにMIDI LearnManagerを設定
+	transportPanel.setMidiLearnManager(&midiLearnManager);
+	
 	looper.addListener(this);
 
     // Initialize Global Stars

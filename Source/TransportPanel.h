@@ -13,11 +13,13 @@
 #include "ThemeColours.h"
 #include "LooperAudio.h"
 #include "RoundButtonLookAndFeel.h"
+#include "MidiLearnManager.h"
 // =====================================================
 // 🎛 TransportPanel クラス宣言
 // =====================================================
 class TransportPanel: public juce::Component,
-					public juce::Button::Listener
+					public juce::Button::Listener,
+					public MidiLearnManager::Listener
 
 {
 public:
@@ -33,12 +35,18 @@ public:
 	
 	// Visual Mode Button Accessor
 	void setVisualModeButtonText(const juce::String& text);
+	
+	// MIDI Learn
+	void setMidiLearnManager(MidiLearnManager* manager);
 
 	void paint(juce::Graphics& g)override;
 	void resized() override;
 	void buttonClicked(juce::Button* button) override;
 	void setState(State newState);
 	State getState() const{return currentState;}
+	
+	// MidiLearnManager::Listener
+	void midiValueReceived(const juce::String& controlId, float value) override;
 
 
 private:
@@ -58,6 +66,10 @@ private:
 	juce::TextButton testButton {"TEST"};  // テスト用
 	juce::TextButton visualModeButton {"VISUAL MODE"}; // トラック表示切替用
 	juce::TextButton fxButton {"FX"};  // FX画面切り替え用
+	
+	// MIDI Learn
+	MidiLearnManager* midiManager = nullptr;
+	void handleButtonClick(juce::TextButton* button, const juce::String& controlId);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransportPanel);
 };
