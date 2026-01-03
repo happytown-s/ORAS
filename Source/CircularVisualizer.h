@@ -243,27 +243,36 @@ public:
         g.setColour(ThemeColours::MetalGray.withAlpha(0.1f));
         g.fillEllipse(bounds.withSizeKeepingCentre(radius * 2.0f, radius * 2.0f));
 
-        // --- 1. Particle Field (Stars) ---
+        // --- 1. Particle Field (White Smoke / Stars) ---
         // 画面全体に描画するため、大きな半径を渡す
         float maxParticleDist = juce::jmax(bounds.getWidth(), bounds.getHeight()) * 0.8f;
         drawParticles(g, centre, maxParticleDist);
 
-        // --- 2. Pulsating Core ---
+        // --- 2. Black Hole Core ---
         float bassLevel = juce::jlimit(0.0f, 1.0f, scopeData[0] * 0.5f + scopeData[1] * 0.3f + scopeData[2] * 0.2f);
-        float coreRadius = radius * (0.15f + bassLevel * 0.15f);
         
-        float coreAlpha = juce::jlimit(0.0f, 1.0f, 0.6f * (0.5f + bassLevel));
-        juce::ColourGradient coreGrad(ThemeColours::NeonCyan.withAlpha(coreAlpha), centre.x, centre.y,
-                                     ThemeColours::NeonCyan.withAlpha(0.0f), centre.x + coreRadius, centre.y + coreRadius, true);
-        g.setGradientFill(coreGrad);
+        // ブラックホールのイベントホライズン（黒い核）
+        // 低音でサイズが少し変動
+        float coreRadius = radius * (0.20f + bassLevel * 0.10f); 
+        
+        // 降着円盤 (Accretion Disk) - 周囲の光
+        // 白〜青白く光る
+        float diskRadius = coreRadius * 1.4f;
+        juce::ColourGradient diskGrad(juce::Colours::white.withAlpha(0.6f), centre.x, centre.y,
+                                     ThemeColours::NeonCyan.withAlpha(0.0f), centre.x + diskRadius, centre.y + diskRadius, true);
+        g.setGradientFill(diskGrad);
+        g.fillEllipse(centre.x - diskRadius, centre.y - diskRadius, diskRadius * 2.0f, diskRadius * 2.0f);
+
+        // イベントホライズン（本体） - 漆黒
+        g.setColour(juce::Colours::black);
         g.fillEllipse(centre.x - coreRadius, centre.y - coreRadius, coreRadius * 2.0f, coreRadius * 2.0f);
         
-        // Core center light
-        float centerAlpha = juce::jlimit(0.0f, 1.0f, 0.4f * (0.3f + bassLevel));
-        g.setColour(juce::Colours::white.withAlpha(centerAlpha));
-        g.fillEllipse(centre.x - 2.0f, centre.y - 2.0f, 4.0f, 4.0f);
+        // 追加の闇（中心をより深く見せる）
+        g.setColour(juce::Colours::black.withAlpha(0.8f));
+        g.fillEllipse(centre.x - coreRadius*0.8f, centre.y - coreRadius*0.8f, coreRadius * 1.6f, coreRadius * 1.6f);
 
-        g.setColour(ThemeColours::MetalGray.withAlpha(0.3f));
+        // 外側の装飾リング（重力レンズ的な歪みの表現として残す）
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
         g.drawEllipse(bounds.withSizeKeepingCentre(radius * 2.1f, radius * 2.1f), 1.0f);
 
         // --- Draw Concentric Waveforms with Glow ---
@@ -742,18 +751,26 @@ private:
             
             if (dist > maxRadius * 1.5f) continue;
             
-            // 中心に近いほど明るく、光の収束を表現
+            // 中心に近いほど明るく
             float proximityBonus = juce::jlimit(0.0f, 1.0f, 1.0f - (dist / maxRadius));
-            float alpha = juce::jlimit(0.0f, 1.0f, particles[i].alpha * particles[i].life * (0.3f + proximityBonus * 0.7f));
+            float alpha = juce::jlimit(0.0f, 1.0f, particles[i].alpha * particles[i].life * (0.2f + proximityBonus * 0.6f));
             
-            // パーティクル本体
+            // パーティクル本体（核） - 少し小さく
             g.setColour(juce::Colours::white.withAlpha(alpha));
-            g.fillEllipse(px - particles[i].size*0.5f, py - particles[i].size*0.5f, particles[i].size, particles[i].size);
+            float coreSize = particles[i].size * 0.6f;
+            g.fillEllipse(px - coreSize*0.5f, py - coreSize*0.5f, coreSize, coreSize);
             
-            // グロウ（中心に近いほど強い）
-            float glowAlpha = juce::jlimit(0.0f, 1.0f, alpha * 0.4f * (0.5f + proximityBonus * 0.5f));
-            g.setColour(ThemeColours::NeonCyan.withAlpha(glowAlpha));
-            g.fillEllipse(px - particles[i].size, py - particles[i].size, particles[i].size*2.0f, particles[i].size*2.0f);
+            // スモーク（柔らかいグロー）
+            // ネオンシアンではなく、少し青みがかった白で霧っぽさを表現
+            // 色: RGB(200, 220, 255) くらい
+            juce::Colour smokeColor = juce::Colour::fromFloatRGBA(0.85f, 0.9f, 1.0f, 1.0f);
+            
+            float glowAlpha = juce::jlimit(0.0f, 1.0f, alpha * 0.3f); // 少し薄くして重ねる
+            g.setColour(smokeColor.withAlpha(glowAlpha));
+            
+            // サイズを大きくしてボケ感を出す
+            float smokeSize = particles[i].size * 2.5f;
+            g.fillEllipse(px - smokeSize*0.5f, py - smokeSize*0.5f, smokeSize, smokeSize);
         }
     }
     void pushSampleIntoFifo(float sample) noexcept
