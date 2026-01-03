@@ -60,7 +60,7 @@ public MidiLearnManager::Listener
 	// ===== オーディオ関連 =====
 	InputTap inputTap;
 	juce::TriggerEvent& sharedTrigger;
-	LooperAudio looper ;//10秒バッファ
+	LooperAudio looper ; // 30秒バッファ
 
 	void timerCallback()override;
 
