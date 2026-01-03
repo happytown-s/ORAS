@@ -289,9 +289,8 @@ void TransportPanel::handleButtonClick(juce::TextButton* button, const juce::Str
 void TransportPanel::midiValueReceived(const juce::String& controlId, float value)
 {
 	// MIDI信号を受信した時の処理
-	// Note: 値が0.5以上でトリガー（トグル動作）
-	if (value < 0.5f)
-		return;
+	// Note: 値に関わらずトリガー（トグル動作のMIDIコントローラーに対応するため、0受信時も実行する）
+	// if (value < 0.5f) return;
 	
 	// controlIdに応じてボタンをトリガー
 	if (controlId == "transport_rec")

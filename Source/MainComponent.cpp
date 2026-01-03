@@ -1161,9 +1161,8 @@ void MainComponent::updateNextTargetPreview()
 // =====================================================
 void MainComponent::midiValueReceived(const juce::String& controlId, float value)
 {
-	// Note: 値が0.5以上でトリガー（トグル動作）
-	if (value < 0.5f)
-		return;
+	// Note: 値に関わらずトリガー（トグル動作のMIDIコントローラーに対応）
+	// if (value < 0.5f) return;
 		
 	if (controlId.startsWith("track_select_"))
 	{
