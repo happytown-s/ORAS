@@ -46,8 +46,19 @@ public:
         g.drawText(text, bounds.reduced(8, 0), juce::Justification::centred);
     }
     
-    void mouseDown(const juce::MouseEvent&) override
+    void mouseDown(const juce::MouseEvent& e) override
     {
+        // 右クリックでリセット
+        if (e.mods.isRightButtonDown())
+        {
+            manager.clearMapping(action);
+            updateDisplay();
+            repaint();
+            if (onMappingChanged) onMappingChanged();
+            return;
+        }
+        
+        // 左クリックでキー入力待機開始
         isWaiting = true;
         repaint();
         grabKeyboardFocus();
@@ -97,6 +108,16 @@ public:
     {
         int keyCode = manager.getKeyForAction(action);
         displayText = KeyboardMappingManager::getKeyDescription(keyCode);
+    }
+    
+    // 待機状態をキャンセル
+    void cancelWaiting()
+    {
+        if (isWaiting)
+        {
+            isWaiting = false;
+            repaint();
+        }
     }
     
     std::function<void()> onMappingChanged;
@@ -176,6 +197,13 @@ public:
             row.removeFromLeft(20); // spacing
             keyFields[i]->setBounds(row.removeFromLeft(fieldWidth).reduced(0, 4));
         }
+    }
+    
+    // 背景クリックで全フィールドの待機状態を解除
+    void mouseDown(const juce::MouseEvent&) override
+    {
+        for (auto* f : keyFields)
+            f->cancelWaiting();
     }
     
 private:
