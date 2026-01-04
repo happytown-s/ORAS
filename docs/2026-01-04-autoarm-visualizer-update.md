@@ -13,6 +13,7 @@ Auto-Arm機能のTransportPanel表示修正と、ビジュアライザのブラ�
 - Auto-Arm処理後に `updateStateVisual()` を呼び出すように追加
 
 #### TransportPanel.cpp
+
 - `State::Recording` でもplayButtonを `STOP` に変更
 - `State::Standby` でもplayButtonを `STOP` に変更
 - これにより、Idle以外のすべての状態でSTOPボタンが表示される

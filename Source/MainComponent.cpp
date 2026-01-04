@@ -62,7 +62,16 @@ MainComponent::MainComponent()
 	transportPanel.onAction = [this](const juce::String& action)
 	{
 		if      (action == "REC")  {
-			// Check if we are already in standby (or have tracks in standby)
+			// 選択されているIdleトラックがあるかチェック
+			bool hasSelectedIdle = false;
+			for(auto& t : trackUIs) {
+				if(t->getIsSelected() && t->getState() == LooperTrackUi::TrackState::Idle) {
+					hasSelectedIdle = true;
+					break;
+				}
+			}
+			
+			// Standby中のトラックがあるかチェック
 			bool anyStandby = false;
 			for(auto& t : trackUIs) {
 				if(t->getState() == LooperTrackUi::TrackState::Standby) {
@@ -71,24 +80,22 @@ MainComponent::MainComponent()
 				}
 			}
 
-			if (anyStandby)
+			if (anyStandby || hasSelectedIdle)
 			{
-				// 🔴 Force Start Recording (Signal to audio thread)
+				// 🔴 選択中のIdleトラックをStandbyに変更してから即座に録音開始
+				if (hasSelectedIdle) {
+					for (auto& t : trackUIs) {
+						if (t->getIsSelected() && t->getState() == LooperTrackUi::TrackState::Idle) {
+							t->setState(LooperTrackUi::TrackState::Standby);
+						}
+					}
+				}
 				forceRecordRequest = true;
 			}
 			else
 			{
-				// 🟡 Enter Standby mode
-				isStandbyMode = true;
-				for (auto& t : trackUIs)
-				{
-					if (t->getIsSelected() &&
-						t->getState() == LooperTrackUi::TrackState::Idle)
-					{
-						t->setState(LooperTrackUi::TrackState::Standby);
-					}
-				}
-				updateStateVisual();
+				// 🟡 トラックが選択されていない場合は何もしない
+				DBG("⚠️ No track selected for recording");
 			}
 		}
 		else if (action == "STOP_REC") {
@@ -289,7 +296,7 @@ MainComponent::MainComponent()
 		resized();
 	};
 
-	setSize(760, 800);
+	setSize(710, 750);
 
 
 	//ルーパーからのリスナーイベントを受け取る
@@ -629,6 +636,7 @@ void MainComponent::paint(juce::Graphics& g)
 
 void MainComponent::resized() 
 {
+	DBG("📐 Window size: " << getWidth() << " x " << getHeight());
 	auto area = getLocalBounds().reduced(15);
 	
 	// MIDI Learn と Auto-Arm ボタンをヘッダー部の右上に配置
